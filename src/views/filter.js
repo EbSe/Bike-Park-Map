@@ -10,12 +10,12 @@ export function renderFilterSheet(container, onApply) {
 
   container.innerHTML = `
     <div class="sheet-handle"></div>
-    <div class="sheet-title">
-      <span>Filter</span>
-      <button id="filter-reset">Zurücksetzen</button>
+    <div class="sheet-header">
+      <h2 class="sheet-title">Filter</h2>
+      <button class="sheet-action" id="filter-reset">Zurücksetzen</button>
     </div>
 
-    <div class="filter-section">
+    <div class="filter-group">
       <h4>Land</h4>
       <div class="chip-group" id="filter-country">
         ${countries.map((c) => `
@@ -26,18 +26,18 @@ export function renderFilterSheet(container, onApply) {
       </div>
     </div>
 
-    <div class="filter-section">
+    <div class="filter-group">
       <h4>Schwierigkeit</h4>
       <div class="chip-group" id="filter-diff">
         ${allDiffs.map((d) => `
-          <button class="chip ${f.difficulties.has(d) ? 'active' : ''}" data-d="${d}">
-            <span class="badge dot ${d}"></span> ${store.DIFFICULTY_LABELS[d]}
+          <button class="chip diff-chip ${f.difficulties.has(d) ? 'active' : ''}" data-d="${d}">
+            <span class="dot ${d}"></span> ${store.DIFFICULTY_LABELS[d]}
           </button>
         `).join('')}
       </div>
     </div>
 
-    <div class="filter-section">
+    <div class="filter-group">
       <h4>Bike-Typ</h4>
       <div class="chip-group" id="filter-biketype">
         ${allBikeTypes.map((t) => `
@@ -46,16 +46,16 @@ export function renderFilterSheet(container, onApply) {
       </div>
     </div>
 
-    <div class="filter-section">
+    <div class="filter-group">
       <h4>Lift</h4>
       <div class="chip-group" id="filter-lift">
         ${allLifts.map((l) => `
-          <button class="chip ${f.lifts.has(l) ? 'active' : ''}" data-l="${l}">${store.LIFT_LABELS[l]}</button>
+          <button class="chip ${f.lifts.has(l) ? 'active' : ''}" data-l="${l}">${liftIcon(l)} ${store.LIFT_LABELS[l]}</button>
         `).join('')}
       </div>
     </div>
 
-    <div class="filter-section">
+    <div class="filter-group">
       <h4>Ausstattung</h4>
       <div class="chip-group" id="filter-amenity">
         ${allAmen.map((a) => `
@@ -64,40 +64,56 @@ export function renderFilterSheet(container, onApply) {
       </div>
     </div>
 
-    <div class="filter-section">
-      <h4>Max. Tagespreis</h4>
-      <div class="range-row">
+    <div class="filter-group">
+      <h4>Tagespreis</h4>
+      <div class="range-group">
+        <div class="range-head">
+          <span>Maximal</span>
+          <span class="val" id="price-val">${f.maxPrice == null ? 'beliebig' : '€ ' + f.maxPrice}</span>
+        </div>
         <input type="range" id="filter-price" min="0" max="100" step="5" value="${f.maxPrice == null ? 100 : f.maxPrice}" />
-        <span class="range-val" id="price-val">${f.maxPrice == null ? 'beliebig' : '€ ' + f.maxPrice}</span>
       </div>
     </div>
 
-    <div class="filter-section">
-      <h4>Max. Entfernung</h4>
-      <div class="range-row">
-        <input type="range" id="filter-dist" min="0" max="800" step="25" value="${f.maxDistance == null ? 800 : f.maxDistance}" />
-        <span class="range-val" id="dist-val">${f.maxDistance == null ? 'beliebig' : f.maxDistance + ' km'}</span>
+    <div class="filter-group">
+      <h4>Entfernung</h4>
+      <div class="range-group">
+        <div class="range-head">
+          <span>Maximal</span>
+          <span class="val" id="dist-val">${f.maxDistance == null ? 'beliebig' : f.maxDistance + ' km'}</span>
+        </div>
+        <input type="range" id="filter-dist" min="0" max="500" step="25" value="${f.maxDistance == null ? 500 : f.maxDistance}" />
       </div>
-      <p class="note">Nur aktiv wenn Standort verfügbar.</p>
     </div>
 
-    <div class="filter-section">
-      <h4>Mindest-Bewertung (deine)</h4>
+    <div class="filter-group">
+      <h4>Mindest-Bewertung</h4>
       <div class="chip-group" id="filter-rating">
         ${[0,1,2,3,4,5].map((n) => `<button class="chip ${f.minRating === n ? 'active' : ''}" data-r="${n}">${n === 0 ? 'beliebig' : '★'.repeat(n)}</button>`).join('')}
       </div>
     </div>
 
-    <div class="filter-section">
+    <div class="filter-group">
       <h4>Spezial</h4>
-      <div class="chip-group" id="filter-special">
-        <button class="chip ${f.onlyOpen ? 'active' : ''}" data-s="onlyOpen">🟢 Aktuell geöffnet</button>
-        <button class="chip ${f.onlyVisited ? 'active' : ''}" data-s="onlyVisited">✅ Nur gefahrene</button>
-        <button class="chip ${f.onlyBucket ? 'active' : ''}" data-s="onlyBucket">⭐ Nur Wishlist</button>
+      <div class="toggle-row">
+        <div class="toggle ${f.onlyOpen ? 'on' : ''} first" data-s="onlyOpen">
+          <span>🟢 Aktuell geöffnet</span>
+          <span class="switch"></span>
+        </div>
+        <div class="toggle ${f.onlyVisited ? 'on' : ''} mid" data-s="onlyVisited">
+          <span>✅ Nur gefahrene</span>
+          <span class="switch"></span>
+        </div>
+        <div class="toggle ${f.onlyBucket ? 'on' : ''} last" data-s="onlyBucket">
+          <span>⭐ Nur Wishlist</span>
+          <span class="switch"></span>
+        </div>
       </div>
     </div>
 
-    <button class="btn-primary" id="filter-apply">Anwenden (${store.applyFilters().length} Parks)</button>
+    <div class="cta-bar">
+      <button class="btn btn-primary" id="filter-apply">Anwenden · ${store.applyFilters().length} Parks</button>
+    </div>
   `;
 
   bindChips(container, '#filter-country', 'data-c', (v) => store.toggleSetMember('countries', v));
@@ -107,14 +123,19 @@ export function renderFilterSheet(container, onApply) {
   bindChips(container, '#filter-amenity', 'data-a', (v) => store.toggleSetMember('amenities', v));
   for (const b of container.querySelectorAll('#filter-rating .chip')) {
     b.addEventListener('click', () => {
-      const r = parseInt(b.dataset.r, 10);
-      store.setFilter('minRating', r);
+      for (const x of container.querySelectorAll('#filter-rating .chip')) x.classList.remove('active');
+      b.classList.add('active');
+      store.setFilter('minRating', parseInt(b.dataset.r, 10));
+      updateCount(container);
     });
   }
-  for (const b of container.querySelectorAll('#filter-special .chip')) {
-    b.addEventListener('click', () => {
-      const k = b.dataset.s;
-      store.setFilter(k, !store.getState().filters[k]);
+  for (const t of container.querySelectorAll('.toggle[data-s]')) {
+    t.addEventListener('click', () => {
+      const k = t.dataset.s;
+      const newVal = !store.getState().filters[k];
+      store.setFilter(k, newVal);
+      t.classList.toggle('on', newVal);
+      updateCount(container);
     });
   }
   const priceInput = container.querySelector('#filter-price');
@@ -123,13 +144,15 @@ export function renderFilterSheet(container, onApply) {
     const v = parseInt(priceInput.value, 10);
     priceVal.textContent = v === 100 ? 'beliebig' : '€ ' + v;
     store.setFilter('maxPrice', v === 100 ? null : v);
+    updateCount(container);
   });
   const distInput = container.querySelector('#filter-dist');
   const distVal = container.querySelector('#dist-val');
   distInput.addEventListener('input', () => {
     const v = parseInt(distInput.value, 10);
-    distVal.textContent = v === 800 ? 'beliebig' : v + ' km';
-    store.setFilter('maxDistance', v === 800 ? null : v);
+    distVal.textContent = v === 500 ? 'beliebig' : v + ' km';
+    store.setFilter('maxDistance', v === 500 ? null : v);
+    updateCount(container);
   });
 
   container.querySelector('#filter-reset').addEventListener('click', () => {
@@ -147,9 +170,16 @@ function bindChips(container, sel, attr, fn) {
       const val = b.getAttribute(attr);
       fn(val);
       b.classList.toggle('active');
-      // update apply count
-      const applyBtn = container.querySelector('#filter-apply');
-      if (applyBtn) applyBtn.textContent = `Anwenden (${store.applyFilters().length} Parks)`;
+      updateCount(container);
     });
   }
+}
+
+function updateCount(container) {
+  const btn = container.querySelector('#filter-apply');
+  if (btn) btn.textContent = `Anwenden · ${store.applyFilters().length} Parks`;
+}
+
+function liftIcon(l) {
+  return ({ gondola: '🚠', cablecar: '🚠', funicular: '🚞', chairlift: '🚡', tbar: '🪝', shuttle: '🚐', coaster: '🛷', none: '🚲' })[l] || '';
 }

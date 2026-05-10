@@ -5,48 +5,73 @@ import { renderAddParkSheet } from './add-park.js';
 
 export function renderSettings(container) {
   container.innerHTML = `
-    <div class="list-wrap">
-      <div class="filter-section">
-        <h4>Eigene Parks</h4>
-        <button class="btn-primary" id="add-park">➕ Eigenen Park / Vereinspark hinzufügen</button>
-        <p class="note">Kennst du einen Park, der noch nicht erfasst ist? Pinne ihn auf der Karte, gib Details ein und er erscheint überall in der App.</p>
+    <div class="settings-wrap">
+
+      <div class="section-card">
+        <div class="head">Eigene Parks</div>
+        <button class="item-btn" id="add-park">
+          <div class="icon-wrap">➕</div>
+          <div class="lbl-stack">
+            <div class="lbl">Park hinzufügen</div>
+            <div class="sub">Vereinspark oder neuen Spot pinnen</div>
+          </div>
+          <div class="chevron">›</div>
+        </button>
       </div>
 
-      <div class="filter-section">
-        <h4>Backup & Wiederherstellen</h4>
-        <button class="btn-secondary" id="export-data">📤 Daten exportieren (JSON)</button>
-        <p class="note" style="margin-top:6px">Sichert alle deine Sessions, Bewertungen, Fotos & eigenen Parks in eine Datei. Alle Daten sind nur lokal auf deinem Gerät – per Export kannst du sie z.B. via AirDrop auf ein neues iPhone übertragen.</p>
+      <div class="section-card">
+        <div class="head">Datenmanagement</div>
+        <button class="item-btn" id="export-data">
+          <div class="icon-wrap">📤</div>
+          <div class="lbl-stack">
+            <div class="lbl">Daten exportieren</div>
+            <div class="sub">JSON-Backup deiner Sessions, Bewertungen & Fotos</div>
+          </div>
+          <div class="chevron">›</div>
+        </button>
+        <button class="item-btn" id="import-data">
+          <div class="icon-wrap">📥</div>
+          <div class="lbl-stack">
+            <div class="lbl">Daten importieren</div>
+            <div class="sub">JSON-Backup einspielen (ergänzt vorhandene Daten)</div>
+          </div>
+          <div class="chevron">›</div>
+        </button>
         <input type="file" id="import-file" accept=".json,application/json" hidden />
-        <button class="btn-secondary" id="import-data" style="margin-top:10px">📥 Daten importieren</button>
-        <button class="btn-danger" id="reset-data" style="margin-top:10px;width:100%">🗑️ Alle eigenen Daten löschen</button>
+        <button class="item-btn danger" id="reset-data">
+          <div class="icon-wrap">🗑️</div>
+          <div class="lbl-stack">
+            <div class="lbl" style="color:var(--danger)">Alle Daten löschen</div>
+            <div class="sub">Setzt eigene Daten zurück – Park-Datenbank bleibt</div>
+          </div>
+          <div class="chevron">›</div>
+        </button>
       </div>
 
-      <div class="filter-section">
-        <h4>App</h4>
-        <div class="row">
+      <div class="section-card">
+        <div class="head">Über die App</div>
+        <div class="item">
           <div class="lbl-stack">
-            <span>App-Version</span>
-            <span class="sub">1.0.0</span>
+            <div class="lbl">App-Version</div>
+            <div class="sub">1.1.0 · 84 kuratierte Parks (400 km um Ravensburg)</div>
           </div>
         </div>
-        <div class="row">
+        <div class="item">
           <div class="lbl-stack">
-            <span>Bikeparks erfasst</span>
-            <span class="sub">${store.getState().parks.length} Parks (inkl. eigener)</span>
+            <div class="lbl">Datenstand</div>
+            <div class="sub">Recherchiert 2024 · vor Besuch immer Webseite checken</div>
           </div>
         </div>
-        <div class="row">
+        <div class="item">
           <div class="lbl-stack">
-            <span>Service Worker / Offline</span>
-            <span class="sub">Karten-Tiles werden gecached. Schon einmal besuchte Parks funktionieren offline.</span>
+            <div class="lbl">Offline-Modus</div>
+            <div class="sub">Karten-Tiles werden gecached. Schon besuchte Parks funktionieren offline.</div>
           </div>
         </div>
       </div>
 
-      <div class="filter-section">
-        <h4>Hinweis zu Daten</h4>
-        <p class="note">Preise, Saisonzeiten und Streckendaten sind sorgfältig recherchiert (Stand 2024), können sich aber ändern. <b>Vor dem Besuch immer die offizielle Webseite des Parks checken.</b></p>
-        <p class="note">Karten: © OpenStreetMap-Mitwirkende. Wetter: Open-Meteo.com. Diese App nutzt keine Tracking-Cookies.</p>
+      <div class="notice">
+        <strong>Datenschutz.</strong> Alle Daten (Sessions, Bewertungen, Fotos, eigene Parks) liegen <b>ausschließlich auf deinem Gerät</b>. Keine Anmeldung, kein Backend, keine Tracking-Cookies, kein Analytics. Karten © OpenStreetMap-Mitwirkende · Wetter: Open-Meteo.com.
       </div>
     </div>
   `;
@@ -54,7 +79,7 @@ export function renderSettings(container) {
   container.querySelector('#add-park').addEventListener('click', () => openAddParkSheet());
 
   container.querySelector('#export-data').addEventListener('click', async () => {
-    showToast('Exportiere…');
+    showToast('Exportiere …');
     try {
       const data = await db.exportAll();
       const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -64,7 +89,7 @@ export function renderSettings(container) {
       a.download = `bikepark-map-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast('Backup erstellt');
+      showToast('Backup erstellt', 'success');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -75,13 +100,13 @@ export function renderSettings(container) {
   importFile.addEventListener('change', async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!confirm('Backup-Datei einspielen? Bestehende Daten werden ergänzt (nicht überschrieben).')) return;
+    if (!confirm('Backup einspielen? Bestehende Daten werden ergänzt.')) return;
     try {
       const text = await f.text();
       const data = JSON.parse(text);
       await db.importAll(data, { merge: true });
       await store.init();
-      showToast('Backup eingespielt');
+      showToast('Backup eingespielt', 'success');
     } catch (err) {
       showToast(`Import fehlgeschlagen: ${err.message}`, 'error');
     } finally {
@@ -90,15 +115,15 @@ export function renderSettings(container) {
   });
 
   container.querySelector('#reset-data').addEventListener('click', async () => {
-    if (!confirm('Wirklich ALLE deine Daten (Sessions, Bewertungen, Fotos, eigene Parks) löschen? Das kann nicht rückgängig gemacht werden.')) return;
-    if (!confirm('Letzte Warnung: alle Daten werden gelöscht. Fortfahren?')) return;
+    if (!confirm('Wirklich ALLE deine Daten löschen? (Sessions, Bewertungen, Fotos, eigene Parks)')) return;
+    if (!confirm('Letzte Warnung: alle Daten gehen verloren. Fortfahren?')) return;
     await db.clear('visits');
     await db.clear('media');
     await db.clear('customParks');
     await db.clear('bucket');
     await db.clear('tracks');
     await store.init();
-    showToast('Alle eigenen Daten gelöscht');
+    showToast('Alle Daten gelöscht');
   });
 }
 

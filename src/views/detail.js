@@ -1,6 +1,5 @@
 import * as store from '../lib/store.js';
 import * as db from '../lib/db.js';
-import * as geo from '../lib/geo.js';
 import { getWeather, weatherIcon, dayLabel } from '../lib/weather.js';
 import { parseTrackFile, formatDuration, trackToGPX } from '../lib/gpx.js';
 import { showToast } from './toast.js';
@@ -8,40 +7,49 @@ import { showToast } from './toast.js';
 export async function renderDetail(container, parkId) {
   const park = store.getPark(parkId);
   if (!park) {
-    container.innerHTML = `<div class="empty"><div class="emoji">❓</div><p>Park nicht gefunden.</p></div>`;
+    container.innerHTML = `<div class="empty"><div class="emoji">❓</div><div class="title">Park nicht gefunden</div></div>`;
     return;
   }
   const visit = store.getVisit(parkId) || { parkId, sessions: [], rating: 0, notes: '' };
   const inBucket = store.isInBucket(parkId);
+  const sessions = visit.sessions || [];
+  const visited = sessions.length > 0;
   const dist = store.distanceTo(park);
-  const flagClass = `flag-${(park.country || 'other').toLowerCase()}`;
-
+  const flag = store.COUNTRY_FLAGS[park.country] || '📍';
   const open = store.isParkOpenToday(park);
-  const openBadge = open === true ? '<span class="badge green">🟢 geöffnet</span>'
-    : open === false ? '<span class="badge warn">🟠 außerhalb Saison</span>'
+  const openBadge = open === true ? '<span class="chip active" style="background:linear-gradient(135deg,#4ade80,#16a34a);color:#052e16">🟢 Geöffnet</span>'
+    : open === false ? '<span class="chip" style="color:#fbbf24;border-color:rgba(251,191,36,0.4);background:rgba(251,191,36,0.1)">🟠 Außerhalb Saison</span>'
     : '';
+
+  const media = await db.getMediaByPark(parkId);
 
   container.innerHTML = `
     <div class="detail-wrap">
       <div class="detail-hero">
-        <button class="back" id="back-btn">‹</button>
-        <h1 class="${flagClass}">${escapeHtml(park.name)}</h1>
+        <button class="detail-back" id="back-btn" aria-label="Zurück">‹</button>
+        <h1>${flag} ${escapeHtml(park.name)}</h1>
         <div class="subtitle">${escapeHtml(park.region || '')}${dist != null ? ` · ${dist.toFixed(1)} km entfernt` : ''}</div>
-        <div class="tags">
+        <div class="hero-tags">
           ${openBadge}
-          ${(park.tags || []).map((t) => `<span class="badge">${tagLabel(t)}</span>`).join('')}
-          ${park.isCustom ? '<span class="badge">eigener Park</span>' : ''}
+          ${(park.tags || []).slice(0, 5).map((t) => `<span class="chip">${tagLabel(t)}</span>`).join('')}
+          ${park.isCustom ? '<span class="chip" style="background:rgba(192,132,252,0.15);color:#c084fc">eigener Park</span>' : ''}
         </div>
       </div>
 
       <div class="detail-section">
-        <div class="action-row">
-          <a class="action-btn primary" id="route-btn" href="#"><span class="icon">🧭</span><span>Navigieren</span></a>
-          <a class="action-btn" id="homepage-btn" href="${park.homepage || '#'}" target="_blank" rel="noopener"><span class="icon">🌐</span><span>Webseite</span></a>
-          <button class="action-btn ${inBucket ? 'warn' : ''}" id="bucket-btn">
-            <span class="icon">${inBucket ? '⭐' : '☆'}</span><span>${inBucket ? 'Wishlist ✓' : 'Auf Wishlist'}</span>
+        <div class="detail-actions">
+          <a class="action-btn" id="route-btn" href="#">
+            <span class="icon">🧭</span><span>Routen</span>
+          </a>
+          <a class="action-btn" id="homepage-btn" href="${park.homepage || '#'}" target="_blank" rel="noopener">
+            <span class="icon">🌐</span><span>Webseite</span>
+          </a>
+          <button class="action-btn ${inBucket ? 'is-on-warn' : ''}" id="bucket-btn">
+            <span class="icon">${inBucket ? '⭐' : '☆'}</span><span>${inBucket ? 'Gemerkt' : 'Merken'}</span>
           </button>
-          <button class="action-btn success" id="ridden-btn"><span class="icon">✅</span><span>Heute gefahren</span></button>
+          <button class="action-btn ${visited ? 'is-on' : ''}" id="ridden-btn">
+            <span class="icon">✓</span><span>${visited ? `${sessions.length}× hier` : 'Heute hier'}</span>
+          </button>
         </div>
       </div>
 
@@ -50,8 +58,9 @@ export async function renderDetail(container, parkId) {
         <div class="fact-grid">
           ${factsHtml(park)}
         </div>
-        ${park.description ? `<p class="note" style="margin-top:10px;color:var(--text-2);font-style:normal">${escapeHtml(park.description)}</p>` : ''}
-        ${park.season?.note ? `<p class="note">Saison: ${escapeHtml(park.season.note)}</p>` : ''}
+        ${park.description ? `<p class="description" style="margin-top:14px">${escapeHtml(park.description)}</p>` : ''}
+        ${park.season?.note ? `<p class="description muted" style="margin-top:8px">📅 ${escapeHtml(park.season.note)}</p>` : ''}
+        ${park.lastVerified ? `<p class="description muted" style="margin-top:4px;font-size:11px">Daten Stand ${escapeHtml(park.lastVerified)} – Preise und Saisonzeiten bitte auf der Webseite verifizieren.</p>` : ''}
       </div>
 
       ${(park.trails && park.trails.length) ? `
@@ -77,7 +86,12 @@ export async function renderDetail(container, parkId) {
 
       <div class="detail-section">
         <h3>Wetter</h3>
-        <div id="weather-container"><span class="note">Lade Wetter…</span></div>
+        <div id="weather-container">
+          <div class="weather-current skeleton" style="height:92px"></div>
+          <div class="weather-grid" style="margin-top:14px">
+            ${[0,1,2,3].map(() => '<div class="skeleton" style="height:82px;border-radius:12px"></div>').join('')}
+          </div>
+        </div>
       </div>
 
       <div class="detail-section">
@@ -89,29 +103,27 @@ export async function renderDetail(container, parkId) {
 
       <div class="detail-section">
         <h3>Deine Notizen</h3>
-        <textarea class="notes-area" id="notes" placeholder="Deine Notizen, Lieblingstrails, Tipps…">${escapeHtml(visit.notes || '')}</textarea>
-        <button class="btn-secondary" id="save-notes" style="margin-top:8px">Notizen speichern</button>
+        <textarea class="notes-area" id="notes" placeholder="Lieblingstrails, Tipps, Geheimnisse…">${escapeHtml(visit.notes || '')}</textarea>
+        <button class="btn btn-secondary" id="save-notes" style="margin-top:10px">Notizen speichern</button>
       </div>
 
       <div class="detail-section">
-        <h3>Fotos & Videos (${(await db.getMediaByPark(parkId)).length})</h3>
+        <h3>Fotos & Videos <span style="color:var(--text-3);text-transform:none;letter-spacing:0">(${media.length})</span></h3>
         <div class="media-grid" id="media-grid"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <input type="file" id="media-input" accept="image/*,video/*" multiple capture="environment" hidden />
-          <button class="btn-secondary" id="add-media">📷 Foto/Video hinzufügen</button>
-        </div>
+        <input type="file" id="media-input" accept="image/*,video/*" multiple capture="environment" hidden />
+        <button class="btn btn-secondary" id="add-media" style="margin-top:10px">📷 Foto oder Video hinzufügen</button>
       </div>
 
       <div class="detail-section">
-        <h3>Sessions / Tracks</h3>
+        <h3>Sessions & Tracks</h3>
         <div id="sessions-container">${sessionsHtml(visit, store.getTracksForPark(parkId))}</div>
         <input type="file" id="track-input" accept=".gpx,.fit" hidden />
-        <button class="btn-secondary" id="add-track" style="margin-top:8px">📊 GPX / FIT importieren</button>
+        <button class="btn btn-secondary" id="add-track" style="margin-top:10px">📊 GPX / FIT importieren</button>
       </div>
 
       ${park.isCustom ? `
       <div class="detail-section">
-        <button class="btn-danger" id="delete-park" style="width:100%">🗑️ Eigenen Park löschen</button>
+        <button class="btn btn-danger" id="delete-park">🗑️ Eigenen Park löschen</button>
       </div>` : ''}
     </div>
   `;
@@ -124,29 +136,40 @@ export async function renderDetail(container, parkId) {
 function factsHtml(park) {
   const e = park.elevation;
   const p = park.prices;
-  const cur = p?.currency === 'CHF' ? 'CHF' : '€';
+  const cur = p?.currency === 'CHF' ? 'CHF ' : '€ ';
   const items = [];
-  if (e) items.push({ label: 'Höhenunterschied', value: e.vertical ? `${e.vertical} hm` : '–', sub: e.base && e.top ? `${e.base}–${e.top} m` : '' });
-  if (park.trailKm) items.push({ label: 'Trailkilometer', value: `${park.trailKm} km`, sub: park.trailCount ? `${park.trailCount} Strecken` : '' });
-  if (p?.dayPass != null) items.push({ label: 'Tagespass', value: p.dayPass === 0 ? 'gratis' : `${cur === '€' ? '€ ' : 'CHF '}${p.dayPass}`, sub: p.halfDay != null ? `½ Tag: ${cur === '€' ? '€ ' : 'CHF '}${p.halfDay}` : '' });
-  if (p?.weekly) items.push({ label: 'Wochenpass', value: `${cur === '€' ? '€ ' : 'CHF '}${p.weekly}`, sub: p.season ? `Saison: ${cur === '€' ? '€ ' : 'CHF '}${p.season}` : '' });
-  if (park.lift?.length) items.push({ label: 'Lifte', value: park.lift.map((l) => store.LIFT_LABELS[l] || l).slice(0, 2).join(', '), sub: '' });
-  if (park.bikeTypes?.length) items.push({ label: 'Bike-Typen', value: park.bikeTypes.map((t) => store.BIKE_TYPE_LABELS[t] || t).slice(0, 3).join(', '), sub: park.bikeTypes.length > 3 ? `+${park.bikeTypes.length - 3} weitere` : '' });
+  if (e) items.push({ ico: '⛰', label: 'Höhenunterschied', value: e.vertical ? `${e.vertical}` : '–', unit: 'hm', sub: e.base && e.top ? `${e.base}–${e.top} m` : '' });
+  if (park.trailKm) items.push({ ico: '🛤', label: 'Trailkilometer', value: `${park.trailKm}`, unit: 'km', sub: park.trailCount ? `${park.trailCount} Strecken` : '' });
+  if (p?.dayPass != null) items.push({ ico: '🎫', label: 'Tagespass', value: p.dayPass === 0 ? 'gratis' : `${cur.trim()} ${p.dayPass}`, sub: p.halfDay != null && p.dayPass !== 0 ? `½ Tag ${cur}${p.halfDay}` : (p.weekly ? `Woche ${cur}${p.weekly}` : '') });
+  if (park.lift?.length) items.push({ ico: '🚠', label: 'Liftart', value: liftSummary(park.lift), sub: '' });
+  if (park.bikeTypes?.length) items.push({ ico: '🚲', label: 'Bike-Typen', value: park.bikeTypes.slice(0, 2).map((t) => store.BIKE_TYPE_LABELS[t] || t).join(' · '), sub: park.bikeTypes.length > 2 ? `+${park.bikeTypes.length - 2} weitere` : '' });
+  if (p?.season) items.push({ ico: '🎟', label: 'Saisonpass', value: `${cur}${p.season}`, sub: '' });
   return items.map((i) => `
     <div class="fact">
+      <div class="ico">${i.ico}</div>
       <div class="label">${escapeHtml(i.label)}</div>
-      <div class="value">${escapeHtml(i.value)}${i.sub ? ` <small>${escapeHtml(i.sub)}</small>` : ''}</div>
+      <div class="value">${escapeHtml(i.value)}${i.unit ? ` <small style="font-size:13px;color:var(--text-2);font-weight:500;display:inline">${i.unit}</small>` : ''}${i.sub ? `<small>${escapeHtml(i.sub)}</small>` : ''}</div>
     </div>
   `).join('');
+}
+
+function liftSummary(lifts) {
+  if (!lifts || lifts.length === 0) return '–';
+  if (lifts.includes('none')) return 'Kein Lift';
+  if (lifts.includes('gondola')) return 'Gondelbahn';
+  if (lifts.includes('chairlift')) return 'Sessellift';
+  if (lifts.includes('cablecar')) return 'Seilbahn';
+  if (lifts.includes('funicular')) return 'Standseilbahn';
+  return store.LIFT_LABELS[lifts[0]] || lifts[0];
 }
 
 function trailHtml(t) {
   const len = t.length_m ? (t.length_m >= 1000 ? `${(t.length_m / 1000).toFixed(1)} km` : `${t.length_m} m`) : '';
   return `
     <div class="trail">
-      <span class="difficulty-dot ${t.difficulty || 'blue'}"></span>
-      <div class="name">${escapeHtml(t.name)}${t.note ? ` <small style="color:var(--text-2)">· ${escapeHtml(t.note)}</small>` : ''}</div>
-      <span class="meta">${[len, t.type ? trailTypeLabel(t.type) : ''].filter(Boolean).join(' · ')}</span>
+      <span class="difficulty-marker ${t.difficulty || 'blue'}"></span>
+      <div class="name">${escapeHtml(t.name)}${t.note ? `<small>${escapeHtml(t.note)}</small>` : ''}</div>
+      <span class="trail-meta">${len ? `<strong>${len}</strong>` : ''}${t.type ? `<br>${trailTypeLabel(t.type)}` : ''}</span>
     </div>
   `;
 }
@@ -157,12 +180,12 @@ function tagLabel(t) {
   return ({
     worldcup: '🏆 World Cup', epic: '⭐ Epic', uci: 'UCI', destination: '🎯 Destination',
     longtrail: '📏 Lange Trails', bigmountain: '⛰ Big Mountain', longseason: '📅 Lange Saison',
-    citynear: '🏙 stadtnah', munichnear: '🏙 nahe München', family: '👨‍👩‍👧 Familie',
+    citynear: '🏙 stadtnah', munichnear: '🏙 nahe München', family: '👨‍👩 Familie',
     expert: '💀 Expert', extreme: '☠️ Extrem', altitude: '🏔 Höhenlage',
     enduro: '🥾 Enduro', dolomiti: '🏔 Dolomiten', alpine: '🏔 alpin', panorama: '📸 Panorama',
     free: '🆓 kostenlos', club: '🤝 Verein', shuttle: '🚐 Shuttle', glacier: '❄️ Gletscher',
     unesco: '🌍 UNESCO', international: '🌐 international', lake: '🌊 See', xc: '🏃 XC',
-    affordable: '💰 günstig',
+    affordable: '💰 günstig', custom: '✏ eigen',
   })[t] || t;
 }
 
@@ -180,26 +203,27 @@ async function loadWeather(container, park) {
     }));
     const cur = w.current;
     el.innerHTML = `
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
-        <span style="font-size:36px">${weatherIcon(cur.weather_code, cur.is_day)}</span>
-        <div>
-          <div style="font-size:22px;font-weight:600">${Math.round(cur.temperature_2m)}°C</div>
-          <div style="color:var(--text-2);font-size:12px">Wind ${Math.round(cur.wind_speed_10m)} km/h · jetzt</div>
+      <div class="weather-current">
+        <div class="ico">${weatherIcon(cur.weather_code, cur.is_day)}</div>
+        <div class="meta">
+          <div class="label">Aktuell</div>
+          <div class="row">Wind ${Math.round(cur.wind_speed_10m)} km/h</div>
         </div>
+        <div class="big-temp">${Math.round(cur.temperature_2m)}°</div>
       </div>
       <div class="weather-grid">
         ${days.slice(0, 4).map((d) => `
           <div class="weather-day">
             <div class="day">${dayLabel(d.date)}</div>
             <div class="ico">${weatherIcon(d.code, 1)}</div>
-            <div class="temp">${d.tmax}° <small>/${d.tmin}°</small></div>
-            ${d.precip > 0.5 ? `<div class="day" style="color:#63b3ed">💧 ${d.precip.toFixed(1)} mm</div>` : ''}
+            <div class="temp">${d.tmax}° <small>/ ${d.tmin}°</small></div>
+            ${d.precip > 0.5 ? `<div class="precip">💧 ${d.precip.toFixed(1)} mm</div>` : ''}
           </div>
         `).join('')}
       </div>
     `;
   } catch (err) {
-    el.innerHTML = '<span class="note">Wetter konnte nicht geladen werden.</span>';
+    el.innerHTML = '<div class="notice">Wetter konnte gerade nicht geladen werden. Funktioniert online.</div>';
   }
 }
 
@@ -213,8 +237,8 @@ async function loadMedia(container, parkId) {
   grid.innerHTML = items.map((m) => `
     <div class="media-item" data-id="${m.id}">
       ${m.type === 'video'
-        ? `<video src="${URL.createObjectURL(m.blob)}" muted playsinline preload="metadata"></video><div class="video-badge">🎬</div>`
-        : `<img src="${URL.createObjectURL(m.blob)}" />`}
+        ? `<video src="${URL.createObjectURL(m.blob)}" muted playsinline preload="metadata"></video><div class="video-badge">▶</div>`
+        : `<img src="${URL.createObjectURL(m.blob)}" alt="" />`}
       <button class="del" data-id="${m.id}">×</button>
     </div>
   `).join('');
@@ -233,8 +257,7 @@ async function loadMedia(container, parkId) {
       const m = items.find((x) => x.id === id);
       if (!m) return;
       const url = URL.createObjectURL(m.blob);
-      const w = window.open(url, '_blank');
-      if (!w) showToast('Vollbild blockiert', 'warn');
+      window.open(url, '_blank');
     });
   });
 }
@@ -243,7 +266,7 @@ function sessionsHtml(visit, tracks) {
   const sessions = visit.sessions || [];
   const orphanTracks = (tracks || []).filter((t) => !sessions.some((s) => s.trackId === t.id));
   if (sessions.length === 0 && orphanTracks.length === 0) {
-    return '<p class="note">Noch keine Sessions. Tippe auf "Heute gefahren" oder importiere einen GPX/FIT-Track.</p>';
+    return '<div class="empty" style="padding:24px"><div class="emoji">📊</div><div class="title">Noch keine Sessions</div><div class="sub">Tippe "Heute hier" oder importiere einen GPX/FIT-Track.</div></div>';
   }
   let html = '';
   for (const s of sessions) {
@@ -252,16 +275,16 @@ function sessionsHtml(visit, tracks) {
       <div class="session" data-session="${s.id}">
         <div class="session-head">
           <span class="date">${formatDate(s.date)}</span>
-          <button class="del-session" data-id="${s.id}" style="color:var(--danger);font-size:12px">Löschen</button>
+          <button class="del-session" data-id="${s.id}">Löschen</button>
         </div>
         <div class="session-stats">
-          ${stats.distance_m ? `<span>📏 ${(stats.distance_m / 1000).toFixed(1)} km</span>` : ''}
-          ${stats.descent_m ? `<span>⬇️ ${stats.descent_m} hm</span>` : ''}
-          ${stats.ascent_m ? `<span>⬆️ ${stats.ascent_m} hm</span>` : ''}
-          ${stats.maxSpeed_kmh ? `<span>⚡ ${stats.maxSpeed_kmh} km/h</span>` : ''}
-          ${stats.movingTime_s ? `<span>⏱ ${formatDuration(stats.movingTime_s)}</span>` : ''}
+          ${stats.distance_m ? `<span>📏 <strong>${(stats.distance_m / 1000).toFixed(1)}</strong> km</span>` : ''}
+          ${stats.descent_m ? `<span>⬇️ <strong>${stats.descent_m}</strong> hm</span>` : ''}
+          ${stats.ascent_m ? `<span>⬆️ <strong>${stats.ascent_m}</strong> hm</span>` : ''}
+          ${stats.maxSpeed_kmh ? `<span>⚡ <strong>${stats.maxSpeed_kmh}</strong> km/h</span>` : ''}
+          ${stats.movingTime_s ? `<span>⏱ <strong>${formatDuration(stats.movingTime_s)}</strong></span>` : ''}
         </div>
-        ${s.trackId ? `<button class="btn-secondary" data-track="${s.trackId}" style="margin-top:8px;font-size:13px">GPX exportieren</button>` : ''}
+        ${s.trackId ? `<button class="btn btn-secondary" data-track="${s.trackId}" style="margin-top:6px;font-size:13px;padding:10px">GPX exportieren</button>` : ''}
       </div>
     `;
   }
@@ -269,11 +292,12 @@ function sessionsHtml(visit, tracks) {
     html += `
       <div class="session">
         <div class="session-head">
-          <span class="date">📊 ${escapeHtml(t.name || 'Track')} (nicht zugeordnet)</span>
+          <span class="date">📊 ${escapeHtml(t.name || 'Track')}</span>
+          <span style="color:var(--text-3);font-size:12px">orphan</span>
         </div>
         <div class="session-stats">
-          ${t.stats?.distance_m ? `<span>📏 ${(t.stats.distance_m / 1000).toFixed(1)} km</span>` : ''}
-          ${t.stats?.descent_m ? `<span>⬇️ ${t.stats.descent_m} hm</span>` : ''}
+          ${t.stats?.distance_m ? `<span>📏 <strong>${(t.stats.distance_m / 1000).toFixed(1)}</strong> km</span>` : ''}
+          ${t.stats?.descent_m ? `<span>⬇️ <strong>${t.stats.descent_m}</strong> hm</span>` : ''}
         </div>
       </div>
     `;
@@ -286,7 +310,6 @@ function bindHandlers(container, park, visit, parkId) {
     store.setView('map');
   });
 
-  // Routing
   container.querySelector('#route-btn').addEventListener('click', (e) => {
     e.preventDefault();
     const isApple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
@@ -296,46 +319,41 @@ function bindHandlers(container, park, visit, parkId) {
     window.open(url, '_blank');
   });
 
-  // Bucket
   container.querySelector('#bucket-btn').addEventListener('click', async () => {
     if (store.isInBucket(parkId)) {
       await db.removeFromBucket(parkId);
       showToast('Von Wishlist entfernt');
     } else {
       await db.addToBucket(parkId);
-      showToast('Zur Wishlist hinzugefügt ⭐');
+      showToast('Auf Wishlist gemerkt', 'success');
     }
     await store.refreshUserData();
   });
 
-  // Mark as ridden today
   container.querySelector('#ridden-btn').addEventListener('click', async () => {
-    const session = await db.addSession(parkId, { date: new Date().toISOString().slice(0, 10), source: 'manual' });
-    showToast(`Als gefahren markiert ✅`);
+    await db.addSession(parkId, { date: new Date().toISOString().slice(0, 10), source: 'manual' });
+    showToast('Als gefahren markiert', 'success');
     await store.refreshUserData();
   });
 
-  // Rating
   for (const b of container.querySelectorAll('#rating-stars button')) {
     b.addEventListener('click', async () => {
       const n = parseInt(b.dataset.n, 10);
       const cur = store.getVisit(parkId)?.rating || 0;
       const newRating = n === cur ? 0 : n;
       await db.setRating(parkId, newRating);
-      showToast(newRating > 0 ? `Bewertung: ${newRating}★` : 'Bewertung entfernt');
+      showToast(newRating > 0 ? `Bewertung ${newRating}★` : 'Bewertung entfernt');
       await store.refreshUserData();
     });
   }
 
-  // Notes
   container.querySelector('#save-notes').addEventListener('click', async () => {
     const text = container.querySelector('#notes').value;
     await db.setNotes(parkId, text);
-    showToast('Notizen gespeichert');
+    showToast('Notizen gespeichert', 'success');
     await store.refreshUserData();
   });
 
-  // Media
   const mediaInput = container.querySelector('#media-input');
   container.querySelector('#add-media').addEventListener('click', () => mediaInput.click());
   mediaInput.addEventListener('change', async (e) => {
@@ -345,15 +363,14 @@ function bindHandlers(container, park, visit, parkId) {
       try {
         await db.addMedia({ parkId, type, blob: f });
       } catch (err) {
-        showToast(`Fehler beim Speichern: ${err.message}`, 'error');
+        showToast(`Fehler: ${err.message}`, 'error');
       }
     }
-    if (files.length) showToast(`${files.length} Datei(en) gespeichert`);
+    if (files.length) showToast(`${files.length} hinzugefügt`, 'success');
     mediaInput.value = '';
     loadMedia(container, parkId);
   });
 
-  // Tracks
   const trackInput = container.querySelector('#track-input');
   container.querySelector('#add-track').addEventListener('click', () => trackInput.click());
   trackInput.addEventListener('change', async (e) => {
@@ -371,7 +388,7 @@ function bindHandlers(container, park, visit, parkId) {
         trackId: saved.id,
         stats: track.stats,
       });
-      showToast(`Track importiert: ${(track.stats.distance_m / 1000).toFixed(1)} km, ${track.stats.descent_m} hm`);
+      showToast(`Track importiert: ${(track.stats.distance_m / 1000).toFixed(1)} km`, 'success');
       await store.refreshUserData();
     } catch (err) {
       showToast(err.message, 'error');
@@ -380,7 +397,6 @@ function bindHandlers(container, park, visit, parkId) {
     }
   });
 
-  // Delete sessions
   for (const b of container.querySelectorAll('.del-session')) {
     b.addEventListener('click', async () => {
       if (!confirm('Session löschen?')) return;
@@ -390,7 +406,6 @@ function bindHandlers(container, park, visit, parkId) {
     });
   }
 
-  // Export GPX
   for (const b of container.querySelectorAll('[data-track]')) {
     b.addEventListener('click', async () => {
       const tracks = await db.getTracksByPark(parkId);
@@ -407,14 +422,12 @@ function bindHandlers(container, park, visit, parkId) {
     });
   }
 
-  // Delete custom park
   const delBtn = container.querySelector('#delete-park');
   if (delBtn) {
     delBtn.addEventListener('click', async () => {
       if (!confirm(`"${park.name}" wirklich löschen?`)) return;
       await db.deleteCustomPark(parkId);
       await db.deleteVisit(parkId);
-      // Re-init store to drop the custom park
       await store.init();
       store.setView('list');
       showToast('Park gelöscht');
