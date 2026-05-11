@@ -5,6 +5,7 @@ import { registerSW } from 'virtual:pwa-register';
 
 import * as store from './lib/store.js';
 import * as geo from './lib/geo.js';
+import { icon } from './lib/icons.js';
 import { renderMap, focusPark, refreshMarkers } from './views/map.js';
 import { renderList } from './views/list.js';
 import { renderDetail } from './views/detail.js';
@@ -15,11 +16,11 @@ import { showToast } from './views/toast.js';
 import { handleShareTarget } from './views/share-target.js';
 
 const TABS = [
-  { id: 'map', label: 'Karte', icon: '🗺️' },
-  { id: 'list', label: 'Liste', icon: '📋' },
-  { id: 'bucket', label: 'Wishlist', icon: '⭐' },
-  { id: 'stats', label: 'Stats', icon: '📊' },
-  { id: 'settings', label: 'Mehr', icon: '⚙️' },
+  { id: 'map', label: 'Karte', icon: 'map' },
+  { id: 'list', label: 'Liste', icon: 'list' },
+  { id: 'bucket', label: 'Wishlist', icon: 'star' },
+  { id: 'stats', label: 'Stats', icon: 'stats' },
+  { id: 'settings', label: 'Mehr', icon: 'settings' },
 ];
 
 const root = document.getElementById('app');
@@ -33,12 +34,12 @@ function buildShell() {
     <div class="view-container">
       <div class="view active" id="view-map" data-view="map">
         <div id="map"></div>
-        <button class="map-fab layers" id="layers-btn" aria-label="Karte wechseln">🗺</button>
+        <button class="map-fab layers" id="layers-btn" aria-label="Karte wechseln">${icon('layers', 22)}</button>
         <button class="map-fab filter" id="map-filter-btn" aria-label="Filter">
-          <span>🔍</span>
+          ${icon('filter', 22)}
           <span class="badge-count hidden" id="map-filter-count">0</span>
         </button>
-        <button class="map-fab locate" id="locate-btn" aria-label="Standort">📍</button>
+        <button class="map-fab locate" id="locate-btn" aria-label="Standort">${icon('location', 22)}</button>
       </div>
       <div class="view" id="view-list" data-view="list"></div>
       <div class="view" id="view-bucket" data-view="bucket"></div>
@@ -56,7 +57,7 @@ function buildShell() {
   for (const t of TABS) {
     const b = document.createElement('button');
     b.dataset.tab = t.id;
-    b.innerHTML = `<span class="tab-icon">${t.icon}</span><span>${t.label}</span>`;
+    b.innerHTML = `<span class="tab-icon">${icon(t.icon, 24)}</span><span>${t.label}</span>`;
     b.addEventListener('click', () => {
       if (t.id === 'bucket') {
         store.setFilter('onlyBucket', true);
@@ -181,6 +182,19 @@ async function boot() {
   renderMap(document.getElementById('map'));
   store.onChange(rerender);
   rerender();
+
+  // Surface the data-freshness status briefly on launch so the user knows
+  // whether they're on live data or the bundled fallback.
+  const meta = store.getDataMeta();
+  if (meta.source === 'live') {
+    const ageHours = meta.version ? Math.round((Date.now() - new Date(meta.version).getTime()) / 3600000) : null;
+    if (ageHours != null) {
+      const txt = ageHours < 1 ? 'gerade aktualisiert' : ageHours < 24 ? `vor ${ageHours} h aktualisiert` : `vor ${Math.floor(ageHours / 24)} Tagen aktualisiert`;
+      showToast(`Daten ${txt}`, 'success');
+    }
+  } else if (meta.source === 'bundled') {
+    showToast('Offline – mitgelieferte Daten', 'warn');
+  }
 
   try {
     await geo.getOnce({ timeout: 4000 });

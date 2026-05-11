@@ -118,15 +118,17 @@ function normalizeData(data) {
 
 async function loadParks({ force = false } = {}) {
   const bundled = normalizeData(bundledData);
-  // Try live fetch first
+  // Cache-bust each load with a query param so HTTP caches at any layer
+  // can't serve a stale copy. The SW NetworkFirst rule still gives us
+  // an offline fallback through its own cache.
+  const url = `${DATA_URL}?t=${Date.now()}`;
   try {
-    const fetchOpts = force ? { cache: 'reload' } : {};
-    const res = await fetch(DATA_URL, fetchOpts);
+    const res = await fetch(url, { cache: force ? 'reload' : 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const live = normalizeData(await res.json());
     if (Array.isArray(live.parks) && live.parks.length > 0) {
       _state.dataVersion = live.dataVersion || null;
-      _state.dataSource = force ? 'live' : 'live';
+      _state.dataSource = 'live';
       return live.parks;
     }
   } catch (err) {

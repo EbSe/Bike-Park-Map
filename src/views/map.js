@@ -9,29 +9,30 @@ let _cluster = null;
 let _markers = new Map();
 let _userMarker = null;
 let _layers = {};
-let _activeLayer = 'osm';
+let _activeLayer = 'dark';
 let _contextCard = null;
 
 const TILE_LAYERS = {
-  osm: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap',
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    attribution: '© CARTO © OSM',
     maxZoom: 19,
-    label: '🗺️ Standard',
+    subdomains: 'abcd',
+    label: 'Dunkel',
+  },
+  voyager: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    attribution: '© CARTO © OSM',
+    maxZoom: 19,
+    subdomains: 'abcd',
+    label: 'Hell',
   },
   topo: {
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
     attribution: '© OpenTopoMap (CC-BY-SA)',
     maxZoom: 17,
     subdomains: 'abc',
-    label: '⛰ Topo',
-  },
-  carto: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-    attribution: '© CARTO © OSM',
-    maxZoom: 19,
-    subdomains: 'abcd',
-    label: '🌙 Dunkel',
+    label: 'Topo',
   },
 };
 
@@ -55,11 +56,11 @@ export function renderMap(container) {
   });
   L.control.zoom({ position: 'bottomright' }).addTo(_map);
 
-  _layers.osm = buildLayer('osm');
+  _layers.dark = buildLayer('dark');
+  _layers.voyager = buildLayer('voyager');
   _layers.topo = buildLayer('topo');
-  _layers.carto = buildLayer('carto');
-  _layers.osm.addTo(_map);
-  _activeLayer = 'osm';
+  _layers.dark.addTo(_map);
+  _activeLayer = 'dark';
 
   _cluster = L.markerClusterGroup({
     maxClusterRadius: 55,
@@ -93,7 +94,7 @@ export function renderMap(container) {
   });
 
   window.addEventListener('toggle-map-layer', () => {
-    const order = ['osm', 'topo', 'carto'];
+    const order = ['dark', 'voyager', 'topo'];
     const idx = order.indexOf(_activeLayer);
     const next = order[(idx + 1) % order.length];
     _map.removeLayer(_layers[_activeLayer]);
@@ -123,18 +124,25 @@ export function refreshMarkers() {
   }
 }
 
+const MARKER_GLYPHS = {
+  default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><polyline points="6 17 10 11 13 11 17 17"/><line x1="10" y1="11" x2="13" y2="6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6.5 7.1.8-5.3 4.9 1.5 7.1L12 18l-6.2 3.8 1.5-7.1L2 9.8l7.1-.8L12 2.5z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>',
+};
+
 function createMarker(park) {
   const visit = store.getVisit(park.id);
   const inBucket = store.isInBucket(park.id);
   let cls = 'map-marker';
-  let emoji = '🚵';
-  if (visit && (visit.sessions || []).length > 0) { cls += ' visited'; emoji = '✓'; }
-  else if (inBucket) { cls += ' bucket'; emoji = '★'; }
-  if (park.isCustom) cls += ' custom';
+  let glyph = MARKER_GLYPHS.default;
+  if (visit && (visit.sessions || []).length > 0) { cls += ' visited'; glyph = MARKER_GLYPHS.check; }
+  else if (inBucket) { cls += ' bucket'; glyph = MARKER_GLYPHS.star; }
+  if (park.isCustom) { cls += ' custom'; glyph = MARKER_GLYPHS.plus; }
 
   const icon = L.divIcon({
     className: 'leaflet-bp-marker',
-    html: `<div class="${cls}"><span>${emoji}</span></div>`,
+    html: `<div class="${cls}"><span class="m-glyph">${glyph}</span></div>`,
     iconSize: [36, 36],
     iconAnchor: [18, 36],
     popupAnchor: [0, -38],

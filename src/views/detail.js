@@ -3,6 +3,7 @@ import * as db from '../lib/db.js';
 import { getWeather, weatherIcon, dayLabel } from '../lib/weather.js';
 import { parseTrackFile, formatDuration, trackToGPX } from '../lib/gpx.js';
 import { tileUrl } from '../lib/map-tile.js';
+import { icon } from '../lib/icons.js';
 import { showToast } from './toast.js';
 
 export async function renderDetail(container, parkId) {
@@ -47,16 +48,16 @@ export async function renderDetail(container, parkId) {
       <div class="detail-section">
         <div class="detail-actions">
           <a class="action-btn" id="route-btn" href="#">
-            <span class="icon">🧭</span><span>Routen</span>
+            ${icon('navigate', 22)}<span>Routen</span>
           </a>
           <a class="action-btn" id="homepage-btn" href="${park.homepage || '#'}" target="_blank" rel="noopener">
-            <span class="icon">🌐</span><span>Webseite</span>
+            ${icon('globe', 22)}<span>Webseite</span>
           </a>
           <button class="action-btn ${inBucket ? 'is-on-warn' : ''}" id="bucket-btn">
-            <span class="icon">${inBucket ? '⭐' : '☆'}</span><span>${inBucket ? 'Gemerkt' : 'Merken'}</span>
+            ${icon(inBucket ? 'starFilled' : 'star', 22)}<span>${inBucket ? 'Gemerkt' : 'Merken'}</span>
           </button>
           <button class="action-btn ${visited ? 'is-on' : ''}" id="ridden-btn">
-            <span class="icon">✓</span><span>${visited ? `${sessions.length}× hier` : 'Heute hier'}</span>
+            ${icon('check', 22)}<span>${visited ? `${sessions.length}× hier` : 'Heute hier'}</span>
           </button>
         </div>
       </div>

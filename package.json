@@ -1,7 +1,7 @@
 {
   "name": "bike-park-map",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "description": "Bikepark map PWA for southern Germany, Austria, Switzerland and northern Italy",
   "scripts": {

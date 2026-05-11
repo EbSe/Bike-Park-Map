@@ -1,5 +1,6 @@
 import * as store from '../lib/store.js';
 import * as db from '../lib/db.js';
+import { icon } from '../lib/icons.js';
 import { showToast } from './toast.js';
 import { renderAddParkSheet } from './add-park.js';
 
@@ -14,16 +15,16 @@ export function renderSettings(container) {
       <div class="section-card">
         <div class="head">Park-Daten</div>
         <button class="item-btn" id="refresh-data">
-          <div class="icon-wrap">🔄</div>
+          <div class="icon-wrap">${icon('refresh', 18)}</div>
           <div class="lbl-stack">
             <div class="lbl">Jetzt aktualisieren</div>
             <div class="sub">Stand: ${ageText} · Quelle: ${sourceLbl}</div>
           </div>
-          <div class="chevron">›</div>
+          <div class="chevron">${icon('chevron', 18)}</div>
         </button>
         <div class="item no-border">
           <div class="lbl-stack">
-            <div class="sub" style="line-height:1.5">Die App lädt Park-Daten automatisch bei jedem Start. Eine GitHub Action zieht jeden Sonntag frische Geo-Daten aus OpenStreetMap (Trails, Lifte, Koordinaten). Preise und Saisonzeiten werden saisonal manuell gepflegt – wenn dir etwas veraltet auffällt, nutze "Daten melden" im Park-Detail.</div>
+            <div class="sub" style="line-height:1.5">Die App lädt Park-Daten automatisch bei jedem Start (NetworkFirst-Strategie, Fallback auf Cache wenn offline). Eine GitHub Action zieht jeden Sonntag frische Geo-Daten aus OpenStreetMap. Preise / Saison werden saisonal gepflegt – nutze sonst "Daten melden" im Park-Detail.</div>
           </div>
         </div>
       </div>
@@ -31,41 +32,41 @@ export function renderSettings(container) {
       <div class="section-card">
         <div class="head">Eigene Parks</div>
         <button class="item-btn" id="add-park">
-          <div class="icon-wrap">➕</div>
+          <div class="icon-wrap">${icon('plus', 18)}</div>
           <div class="lbl-stack">
             <div class="lbl">Park hinzufügen</div>
             <div class="sub">Vereinspark oder neuen Spot pinnen</div>
           </div>
-          <div class="chevron">›</div>
+          <div class="chevron">${icon('chevron', 18)}</div>
         </button>
       </div>
 
       <div class="section-card">
         <div class="head">Datenmanagement</div>
         <button class="item-btn" id="export-data">
-          <div class="icon-wrap">📤</div>
+          <div class="icon-wrap">${icon('download', 18)}</div>
           <div class="lbl-stack">
             <div class="lbl">Daten exportieren</div>
             <div class="sub">JSON-Backup deiner Sessions, Bewertungen & Fotos</div>
           </div>
-          <div class="chevron">›</div>
+          <div class="chevron">${icon('chevron', 18)}</div>
         </button>
         <button class="item-btn" id="import-data">
-          <div class="icon-wrap">📥</div>
+          <div class="icon-wrap">${icon('upload', 18)}</div>
           <div class="lbl-stack">
             <div class="lbl">Daten importieren</div>
             <div class="sub">JSON-Backup einspielen (ergänzt vorhandene Daten)</div>
           </div>
-          <div class="chevron">›</div>
+          <div class="chevron">${icon('chevron', 18)}</div>
         </button>
         <input type="file" id="import-file" accept=".json,application/json" hidden />
         <button class="item-btn danger" id="reset-data">
-          <div class="icon-wrap">🗑️</div>
+          <div class="icon-wrap">${icon('trash', 18)}</div>
           <div class="lbl-stack">
             <div class="lbl" style="color:var(--danger)">Alle Daten löschen</div>
             <div class="sub">Setzt eigene Daten zurück – Park-Datenbank bleibt</div>
           </div>
-          <div class="chevron">›</div>
+          <div class="chevron">${icon('chevron', 18)}</div>
         </button>
       </div>
 
@@ -74,7 +75,7 @@ export function renderSettings(container) {
         <div class="item">
           <div class="lbl-stack">
             <div class="lbl">App-Version</div>
-            <div class="sub">1.3.0 · Build ${typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev'}</div>
+            <div class="sub">1.4.0 · Build ${typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev'}</div>
           </div>
         </div>
         <div class="item">

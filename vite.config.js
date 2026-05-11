@@ -25,7 +25,8 @@ export default defineConfig({
         'apple-touch-icon.png',
       ],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,json}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globIgnores: ['**/data/bikeparks.json'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true,
@@ -36,9 +37,10 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'park-data',
-              networkTimeoutSeconds: 4,
+              networkTimeoutSeconds: 5,
               expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 14 },
               cacheableResponse: { statuses: [0, 200] },
+              fetchOptions: { cache: 'no-store' },
             },
           },
           {
