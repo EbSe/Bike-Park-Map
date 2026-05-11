@@ -2,6 +2,7 @@ import * as store from '../lib/store.js';
 import * as db from '../lib/db.js';
 import { getWeather, weatherIcon, dayLabel } from '../lib/weather.js';
 import { parseTrackFile, formatDuration, trackToGPX } from '../lib/gpx.js';
+import { tileUrl } from '../lib/map-tile.js';
 import { showToast } from './toast.js';
 
 export async function renderDetail(container, parkId) {
@@ -23,16 +24,23 @@ export async function renderDetail(container, parkId) {
 
   const media = await db.getMediaByPark(parkId);
 
+  const heroTile = tileUrl(park.lat, park.lon, 12, 'dark');
+
   container.innerHTML = `
     <div class="detail-wrap">
       <div class="detail-hero">
+        <img class="detail-hero-bg" src="${heroTile}" alt="" />
+        <div class="detail-hero-veil"></div>
         <button class="detail-back" id="back-btn" aria-label="Zurück">‹</button>
-        <h1>${flag} ${escapeHtml(park.name)}</h1>
-        <div class="subtitle">${escapeHtml(park.region || '')}${dist != null ? ` · ${dist.toFixed(1)} km entfernt` : ''}</div>
-        <div class="hero-tags">
-          ${openBadge}
-          ${(park.tags || []).slice(0, 5).map((t) => `<span class="chip">${tagLabel(t)}</span>`).join('')}
-          ${park.isCustom ? '<span class="chip" style="background:rgba(192,132,252,0.15);color:#c084fc">eigener Park</span>' : ''}
+        <div class="detail-hero-content">
+          <div class="detail-hero-flag">${flag}</div>
+          <h1>${escapeHtml(park.name)}</h1>
+          <div class="subtitle">${escapeHtml(park.region || '')}${dist != null ? ` · ${dist.toFixed(1)} km entfernt` : ''}</div>
+          <div class="hero-tags">
+            ${openBadge}
+            ${(park.tags || []).slice(0, 4).map((t) => `<span class="chip">${tagLabel(t)}</span>`).join('')}
+            ${park.isCustom ? '<span class="chip" style="background:rgba(192,132,252,0.18);color:#c084fc">eigener Park</span>' : ''}
+          </div>
         </div>
       </div>
 
@@ -120,6 +128,13 @@ export async function renderDetail(container, parkId) {
         <input type="file" id="track-input" accept=".gpx,.fit" hidden />
         <button class="btn btn-secondary" id="add-track" style="margin-top:10px">📊 GPX / FIT importieren</button>
       </div>
+
+      ${!park.isCustom ? `
+      <div class="detail-section">
+        <h3>Daten</h3>
+        <a class="btn btn-secondary" id="report-btn" href="${reportUrl(park)}" target="_blank" rel="noopener">📝 Veraltete Daten melden</a>
+        <p class="description muted" style="margin-top:10px;font-size:12px">Öffnet ein GitHub-Issue mit vorausgefüllter Vorlage. Datenpflege ist Community-getrieben.</p>
+      </div>` : ''}
 
       ${park.isCustom ? `
       <div class="detail-section">
@@ -439,6 +454,18 @@ function formatDate(s) {
   if (!s) return '';
   const d = new Date(s);
   return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function reportUrl(park) {
+  const repo = 'EbSe/Bike-Park-Map';
+  const title = encodeURIComponent(`Datenupdate: ${park.name}`);
+  const body = encodeURIComponent(
+    `**Park:** ${park.name} (id: ${park.id})\n` +
+    `**Webseite:** ${park.homepage || '–'}\n\n` +
+    `### Was ist veraltet?\n\n- [ ] Preise\n- [ ] Saisonzeiten\n- [ ] Trails / Schwierigkeiten\n- [ ] Lifte\n- [ ] Sonstiges\n\n` +
+    `### Vorschlag\n\n_Bitte beschreibe was sich geändert hat, idealerweise mit Quelle (z.B. Link zur Park-Webseite)._\n`
+  );
+  return `https://github.com/${repo}/issues/new?title=${title}&body=${body}&labels=data-update`;
 }
 
 function escapeHtml(s) {

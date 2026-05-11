@@ -1,6 +1,7 @@
 import * as store from '../lib/store.js';
 import { distanceTo } from '../lib/store.js';
 import { formatDistance } from '../lib/geo.js';
+import { tileUrl } from '../lib/map-tile.js';
 
 const QUICK_FILTERS = [
   { id: 'onlyOpen', label: 'Geöffnet', icon: '🟢' },
@@ -121,33 +122,37 @@ function renderCard(park) {
   const liftIcon = primaryLiftIcon(park.lift);
   const priceStr = formatPriceShort(park.prices);
 
+  const tileSrc = tileUrl(park.lat, park.lon, 12, 'dark');
+
   return `
     <button class="${classNames.join(' ')}" data-park-id="${park.id}">
-      <div class="pc-top">
-        <div class="pc-flag-block">${flag}</div>
-        <div class="pc-title-block">
-          <h3 class="pc-title">${escapeHtml(park.name)}</h3>
-          <div class="pc-subtitle">${escapeHtml(park.region || '')}</div>
-        </div>
-        ${dist != null ? `<div class="pc-distance">
-          <div class="km">${formatDistance(dist).replace(' km', '')}</div>
-          <div class="lbl">${dist >= 1 ? 'KM' : 'M'}</div>
+      <div class="pc-hero">
+        <img class="pc-hero-img" loading="lazy" src="${tileSrc}" alt="" />
+        <div class="pc-hero-fade"></div>
+        <div class="pc-hero-flag">${flag}</div>
+        ${dist != null ? `<div class="pc-hero-distance">
+          <span class="km">${formatDistance(dist)}</span>
         </div>` : ''}
+        ${visited ? `<div class="pc-hero-badge success">✓ gefahren</div>` : ''}
+        ${inBucket && !visited ? `<div class="pc-hero-badge warm">★ Wishlist</div>` : ''}
       </div>
 
-      <div class="diff-row">
-        ${difficulties.map((d) => `<div class="diff-pill ${d} ${has.has(d) ? 'has' : ''}"></div>`).join('')}
-      </div>
+      <div class="pc-body">
+        <h3 class="pc-title">${escapeHtml(park.name)}</h3>
+        <div class="pc-subtitle">${escapeHtml(park.region || '')}</div>
 
-      <div class="pc-meta-row">
-        ${liftIcon ? `<span class="stat-pill"><span class="ico">${liftIcon}</span>${liftLabelShort(park.lift)}</span>` : ''}
-        ${park.elevation?.vertical ? `<span class="stat-pill"><span class="ico">⛰</span>${park.elevation.vertical} hm</span>` : ''}
-        ${park.trailKm ? `<span class="stat-pill"><span class="ico">🛤</span>${park.trailKm} km</span>` : ''}
-        ${priceStr ? `<span class="stat-pill ${park.prices?.dayPass === 0 ? 'success' : 'accent'}">${priceStr}</span>` : ''}
-        ${visited ? `<span class="stat-pill success"><span class="ico">✓</span>${sessions}×</span>` : ''}
-        ${inBucket && !visited ? `<span class="stat-pill warm"><span class="ico">★</span>Wishlist</span>` : ''}
-        ${park.isCustom ? `<span class="stat-pill muted">eigener</span>` : ''}
-        ${rating > 0 ? `<span class="pc-rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</span>` : ''}
+        <div class="diff-row" style="margin-top:10px">
+          ${difficulties.map((d) => `<div class="diff-pill ${d} ${has.has(d) ? 'has' : ''}"></div>`).join('')}
+        </div>
+
+        <div class="pc-meta-row">
+          ${liftIcon ? `<span class="stat-pill"><span class="ico">${liftIcon}</span>${liftLabelShort(park.lift)}</span>` : ''}
+          ${park.elevation?.vertical ? `<span class="stat-pill"><span class="ico">⛰</span>${park.elevation.vertical} hm</span>` : ''}
+          ${park.trailKm ? `<span class="stat-pill"><span class="ico">🛤</span>${park.trailKm} km</span>` : ''}
+          ${priceStr ? `<span class="stat-pill ${park.prices?.dayPass === 0 ? 'success' : 'accent'}">${priceStr}</span>` : ''}
+          ${park.isCustom ? `<span class="stat-pill muted">eigener</span>` : ''}
+          ${rating > 0 ? `<span class="pc-rating">${'★'.repeat(rating)}${'☆'.repeat(5 - rating)}</span>` : ''}
+        </div>
       </div>
     </button>
   `;

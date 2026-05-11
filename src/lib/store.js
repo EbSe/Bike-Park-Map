@@ -1,8 +1,14 @@
 // Tiny event store + filter/derived state for the app.
 
-import bikeparksData from '../data/bikeparks.json';
+import bundledData from '../data/bikeparks.json';
 import * as db from './db.js';
 import { haversineKm, getUserPos } from './geo.js';
+
+// Bundled data is the curated set frozen at build time (fallback).
+// Live data lives at <base>/data/bikeparks.json and is auto-refreshed weekly
+// via the refresh-data GitHub Action.
+const BASE_URL = import.meta.env.BASE_URL || '/';
+const DATA_URL = `${BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/'}data/bikeparks.json`;
 
 export const COUNTRY_NAMES = { DE: 'Deutschland', AT: 'Österreich', CH: 'Schweiz', IT: 'Italien', OTHER: 'Sonstige' };
 export const COUNTRY_FLAGS = { DE: '🇩🇪', AT: '🇦🇹', CH: '🇨🇭', IT: '🇮🇹', OTHER: '🚩' };
@@ -40,6 +46,8 @@ const _state = {
   view: 'map',       // map | list | stats | bucket | settings | detail
   detailParkId: null,
   ready: false,
+  dataVersion: null,    // ISO timestamp of loaded data
+  dataSource: 'bundled', // bundled | live | cached
 };
 
 function defaultFilters() {
@@ -102,12 +110,54 @@ export function activeFilterCount() {
   return n;
 }
 
+function normalizeData(data) {
+  if (Array.isArray(data)) return { parks: data, dataVersion: null };
+  if (data && Array.isArray(data.parks)) return data;
+  throw new Error('Unbekanntes Datenformat');
+}
+
+async function loadParks({ force = false } = {}) {
+  const bundled = normalizeData(bundledData);
+  // Try live fetch first
+  try {
+    const fetchOpts = force ? { cache: 'reload' } : {};
+    const res = await fetch(DATA_URL, fetchOpts);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const live = normalizeData(await res.json());
+    if (Array.isArray(live.parks) && live.parks.length > 0) {
+      _state.dataVersion = live.dataVersion || null;
+      _state.dataSource = force ? 'live' : 'live';
+      return live.parks;
+    }
+  } catch (err) {
+    console.warn('Live data fetch failed, using bundled:', err.message);
+  }
+  _state.dataVersion = bundled.dataVersion || null;
+  _state.dataSource = 'bundled';
+  return bundled.parks;
+}
+
 export async function init() {
-  const customParks = await db.getCustomParks();
-  _state.parks = [...bikeparksData, ...customParks];
+  const [parks, customParks] = await Promise.all([
+    loadParks(),
+    db.getCustomParks(),
+  ]);
+  _state.parks = [...parks, ...customParks];
   await refreshUserData();
   _state.ready = true;
   emit();
+}
+
+export async function refreshLiveData() {
+  const parks = await loadParks({ force: true });
+  const customParks = await db.getCustomParks();
+  _state.parks = [...parks, ...customParks];
+  emit();
+  return { count: parks.length, version: _state.dataVersion, source: _state.dataSource };
+}
+
+export function getDataMeta() {
+  return { version: _state.dataVersion, source: _state.dataSource };
 }
 
 export async function refreshUserData() {

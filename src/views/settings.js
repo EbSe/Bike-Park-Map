@@ -4,8 +4,29 @@ import { showToast } from './toast.js';
 import { renderAddParkSheet } from './add-park.js';
 
 export function renderSettings(container) {
+  const meta = store.getDataMeta();
+  const ageText = formatAge(meta.version);
+  const sourceLbl = meta.source === 'live' ? 'live vom Server' : meta.source === 'cached' ? 'gecached (offline)' : 'mitgeliefert';
+
   container.innerHTML = `
     <div class="settings-wrap">
+
+      <div class="section-card">
+        <div class="head">Park-Daten</div>
+        <button class="item-btn" id="refresh-data">
+          <div class="icon-wrap">🔄</div>
+          <div class="lbl-stack">
+            <div class="lbl">Jetzt aktualisieren</div>
+            <div class="sub">Stand: ${ageText} · Quelle: ${sourceLbl}</div>
+          </div>
+          <div class="chevron">›</div>
+        </button>
+        <div class="item no-border">
+          <div class="lbl-stack">
+            <div class="sub" style="line-height:1.5">Die App lädt Park-Daten automatisch bei jedem Start. Eine GitHub Action zieht jeden Sonntag frische Geo-Daten aus OpenStreetMap (Trails, Lifte, Koordinaten). Preise und Saisonzeiten werden saisonal manuell gepflegt – wenn dir etwas veraltet auffällt, nutze "Daten melden" im Park-Detail.</div>
+          </div>
+        </div>
+      </div>
 
       <div class="section-card">
         <div class="head">Eigene Parks</div>
@@ -53,7 +74,7 @@ export function renderSettings(container) {
         <div class="item">
           <div class="lbl-stack">
             <div class="lbl">App-Version</div>
-            <div class="sub">1.2.0 · Build ${typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev'} · 84 Parks (400 km um Ravensburg)</div>
+            <div class="sub">1.3.0 · Build ${typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev'}</div>
           </div>
         </div>
         <div class="item">
@@ -77,6 +98,17 @@ export function renderSettings(container) {
   `;
 
   container.querySelector('#add-park').addEventListener('click', () => openAddParkSheet());
+
+  container.querySelector('#refresh-data').addEventListener('click', async () => {
+    showToast('Lade frische Daten …');
+    try {
+      const res = await store.refreshLiveData();
+      const ts = res.version ? new Date(res.version).toLocaleString('de-DE') : 'unbekannt';
+      showToast(`${res.count} Parks geladen · ${ts}`, 'success');
+    } catch (err) {
+      showToast(`Fehler: ${err.message}`, 'error');
+    }
+  });
 
   container.querySelector('#export-data').addEventListener('click', async () => {
     showToast('Exportiere …');
@@ -125,6 +157,21 @@ export function renderSettings(container) {
     await store.init();
     showToast('Alle Daten gelöscht');
   });
+}
+
+function formatAge(versionIso) {
+  if (!versionIso) return 'mitgeliefert';
+  const d = new Date(versionIso);
+  if (isNaN(d.getTime())) return 'unbekannt';
+  const diffMs = Date.now() - d.getTime();
+  const days = Math.floor(diffMs / (24 * 3600 * 1000));
+  const hours = Math.floor(diffMs / (3600 * 1000));
+  if (days === 0 && hours === 0) return 'gerade eben';
+  if (days === 0) return `vor ${hours} h`;
+  if (days === 1) return 'vor 1 Tag';
+  if (days < 7) return `vor ${days} Tagen`;
+  if (days < 14) return 'vor 1 Woche';
+  return `vor ${Math.floor(days / 7)} Wochen`;
 }
 
 function openAddParkSheet() {

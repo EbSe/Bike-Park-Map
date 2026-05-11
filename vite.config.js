@@ -32,6 +32,16 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
+            urlPattern: ({ url }) => url.pathname.endsWith('/data/bikeparks.json'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'park-data',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 14 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             urlPattern: ({ url }) => url.hostname.endsWith('tile.openstreetmap.org')
               || url.hostname.endsWith('basemaps.cartocdn.com')
               || url.hostname.endsWith('tile.opentopomap.org'),
