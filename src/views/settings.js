@@ -53,7 +53,7 @@ export function renderSettings(container) {
         <div class="item">
           <div class="lbl-stack">
             <div class="lbl">App-Version</div>
-            <div class="sub">1.1.0 · 84 kuratierte Parks (400 km um Ravensburg)</div>
+            <div class="sub">1.1.0 · Build ${typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev'} · 84 Parks (400 km um Ravensburg)</div>
           </div>
         </div>
         <div class="item">

@@ -1,6 +1,7 @@
 import './styles/main.css';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
+import { registerSW } from 'virtual:pwa-register';
 
 import * as store from './lib/store.js';
 import * as geo from './lib/geo.js';
@@ -209,4 +210,18 @@ window.addEventListener('park:open', (e) => {
 boot().catch((err) => {
   console.error(err);
   document.body.innerHTML = `<div style="color:#fff;padding:30px;font-family:system-ui">Start fehlgeschlagen: ${err.message}</div>`;
+});
+
+// PWA update flow: when a new SW takes over, auto-reload so users always
+// see the latest version. With skipWaiting+clientsClaim the new SW
+// becomes active immediately; we just reload the page.
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    showToast('Neue Version geladen, wird aktualisiert …', 'success');
+    setTimeout(() => updateSW(true), 800);
+  },
+  onOfflineReady() {
+    showToast('Offline bereit', 'success');
+  },
 });

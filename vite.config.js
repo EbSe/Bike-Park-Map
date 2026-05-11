@@ -3,9 +3,13 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages serves repos under /<repo-name>/. Override via VITE_BASE.
 const base = process.env.VITE_BASE || '/Bike-Park-Map/';
+const buildId = new Date().toISOString().replace(/[-:]/g, '').slice(0, 13);
 
 export default defineConfig({
   base,
+  define: {
+    __APP_BUILD__: JSON.stringify(buildId),
+  },
   build: {
     target: 'es2020',
     sourcemap: false,
@@ -13,7 +17,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      injectRegister: false,
       includeAssets: [
         'icons/icon-192.png',
         'icons/icon-512.png',
@@ -23,6 +27,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,json}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.hostname.endsWith('tile.openstreetmap.org')
