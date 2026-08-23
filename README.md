@@ -55,6 +55,10 @@ Bundle-Größe: ca. 311 KB JS (gzip 84 KB), 34 KB CSS (gzip 10 KB), Lighthouse-P
 - **Park-Datenbank**: handkuratiert für ~80 Parks mit Preisen, Saisonzeiten, Strecken-Listen, Lifte, Ausstattung. Stand: 2024 — bitte vor dem Besuch auf der Webseite des jeweiligen Parks aktuelle Infos prüfen!
 - **OpenStreetMap-Erweiterung möglich**: `npm run fetch-osm` läuft die Overpass-API ab und liefert weitere Parks. Aktuell nicht in den Build integriert weil die kuratierten Daten qualitativ besser sind. Wenn du eigene Parks ergänzen willst, ist der „Park hinzufügen"-Dialog in der App der einfachste Weg.
 
+## Ticket-Planer Saalbach Hinterglemm
+
+Eigenständiges Zusatz-Tool (unabhängig von der PWA oben): [`ticket-planer-saalbach.html`](./ticket-planer-saalbach.html) berechnet für eine Familie mit Joker Card die kostenminimale Bike-Ticket-Kombination pro Person und Tag (4-Stunden-, Tages- und Mehrtagesticket) inkl. Wetterprognose. Eine einzelne HTML-Datei ohne Build-Schritt — einfach lokal öffnen oder per GitHub Pages ausliefern. Details siehe Kommentare im Optimizer-Modul; Unit-Tests für die Akzeptanzkriterien: `node scripts/test-ticket-optimizer.mjs`.
+
 ## Lizenz
 
 Code: MIT. Park-Daten: Best-Effort-Recherche, kein Anspruch auf Aktualität oder Vollständigkeit. Karten © OpenStreetMap-Mitwirkende.

@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ticket-Planer Saalbach Hinterglemm</title>
+<meta name="description" content="Kostenminimale Bike-Ticket-Planung für Saalbach Hinterglemm mit Joker Card, Preis- und Wetterdaten.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-2: #f9fafb;
+    --border: #e2e5eb;
+    --text: #14161a;
+    --text-muted: #62687a;
+    --accent: #1f6feb;
+    --accent-ink: #0b3d91;
+    --danger: #c62828;
+    --danger-bg: #fdecea;
+    --ok-bg: #eaf6ec;
+    --ok-ink: #1e6b30;
+    --c-aus: #d6dae2;
+    --c-aus-ink: #40465a;
+    --c-chill: #2f6fed;
+    --c-halbtag: #e23a3a;
+    --c-vollgas: #14151a;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 1px 2px rgba(20,22,26,.06), 0 4px 14px rgba(20,22,26,.06);
+    color-scheme: light;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+    padding-bottom: 48px;
+  }
+  h1,h2,h3{ margin: 0; font-weight: 800; }
+  button{ font-family: inherit; }
+  input{ font-family: inherit; }
+  .wrap{ max-width: 720px; margin: 0 auto; padding: 12px 12px 0; }
+  header.app-header{
+    padding: 18px 12px 10px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  header.app-header h1{ font-size: 1.25rem; }
+  header.app-header p{ margin: 4px 0 0; color: var(--text-muted); font-size: .85rem; }
+
+  section{ margin-top: 14px; }
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px;
+  }
+  .card > h2{ font-size: .95rem; margin-bottom: 8px; }
+  .section-title{
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+
+  /* ---- KPI bar ---- */
+  .kpi-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:8px; }
+  .kpi-tile{
+    background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 8px; text-align:center;
+  }
+  .kpi-tile .kpi-label{ font-size:.68rem; color:var(--text-muted); font-weight:600; }
+  .kpi-tile .kpi-value{ font-size:1.05rem; font-weight:800; margin-top:2px; }
+  .kpi-tile.savings .kpi-value{ color: var(--ok-ink); }
+
+  /* ---- trip controls ---- */
+  .controls-row{ display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+  .field{ display:flex; flex-direction:column; gap:4px; font-size:.78rem; color:var(--text-muted); font-weight:600; }
+  .field input[type="date"]{
+    border:1px solid var(--border); border-radius: var(--radius-sm); padding:8px 10px; font-size:.9rem; min-height:40px;
+    background: var(--surface-2); color: var(--text);
+  }
+  .switch-field{
+    display:flex; align-items:center; gap:8px; min-height:40px; cursor:pointer;
+    color: var(--text-muted); font-size:.78rem; font-weight:600;
+  }
+  .switch{
+    position:relative; width:42px; height:24px; border-radius:999px; border:1px solid var(--border);
+    background: var(--c-aus); flex:none;
+  }
+  .switch[data-on="true"]{ background: var(--accent); border-color: var(--accent); }
+  .switch .knob{
+    position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+    background:#fff; transition: transform .15s ease;
+  }
+  .switch[data-on="true"] .knob{ transform: translateX(18px); }
+  @media (prefers-reduced-motion: reduce){ .switch .knob{ transition:none; } }
+
+  .btn{
+    appearance:none; border:1px solid var(--border); background: var(--surface-2); color:var(--text);
+    border-radius: var(--radius-sm); padding: 9px 12px; font-size:.82rem; font-weight:700; cursor:pointer;
+    min-height:40px;
+  }
+  .btn:hover{ background:#eef1f5; }
+  .btn.primary{ background: var(--accent); border-color: var(--accent); color:#fff; }
+  .btn.primary:hover{ filter:brightness(1.05); }
+  .btn.small{ padding:6px 10px; font-size:.74rem; min-height:40px; }
+  .btn:focus-visible, .switch:focus-visible, button:focus-visible, input:focus-visible{
+    outline: 3px solid var(--accent-ink); outline-offset: 2px;
+  }
+  .actions-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+
+  /* ---- weather status ---- */
+  .weather-status{ font-size:.78rem; color:var(--text-muted); margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .weather-status.error{ color: var(--danger); }
+  .banner{
+    border-radius: var(--radius-sm); padding:10px 12px; font-size:.82rem; margin-top:8px;
+  }
+  .banner.error{ background: var(--danger-bg); color:var(--danger); }
+  .banner.error .btn{ margin-top:6px; }
+
+  /* ---- planning grid ---- */
+  .grid-scroll{ overflow-x: auto; }
+  .plan-grid{
+    display:grid;
+    grid-template-columns: 74px repeat(var(--people-count,4), 1fr);
+    gap:5px;
+    min-width: 0;
+  }
+  .plan-grid .head-cell{
+    font-size:.68rem; font-weight:800; text-align:center; color:var(--text-muted);
+    padding:2px 0 6px; border-bottom:1px solid var(--border);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .day-label{
+    display:flex; flex-direction:column; justify-content:center; padding:4px 2px;
+    font-size:.72rem; border-radius: var(--radius-sm);
+  }
+  .day-label .wd{ font-weight:800; font-size:.78rem; }
+  .day-label .dt{ color:var(--text-muted); }
+  .day-label .wx{ font-size:.95rem; margin-top:1px; }
+  .day-label.trip-edge{ background: var(--surface-2); }
+  .day-label .badge{
+    display:inline-block; font-size:.6rem; font-weight:800; text-transform:uppercase;
+    background: var(--accent); color:#fff; border-radius:5px; padding:1px 4px; margin-top:2px; width:fit-content;
+  }
+  .cell-btn{
+    min-height:44px; width:100%; border-radius: var(--radius-sm); border:1px solid var(--border);
+    background: var(--c-aus); color: var(--c-aus-ink); font-weight:800; font-size:.72rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:2px; padding:2px;
+  }
+  .cell-btn[data-state="1"]{ background: var(--c-chill); color:#fff; border-color: var(--c-chill); }
+  .cell-btn[data-state="2"]{ background: var(--c-halbtag); color:#fff; border-color: var(--c-halbtag); }
+  .cell-btn[data-state="3"]{ background: var(--c-vollgas); color:#fff; border-color: var(--c-vollgas); }
+  .cell-btn.predaymark{ box-shadow: inset 0 0 0 2px #ffb020; }
+
+  .legend{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; font-size:.74rem; color:var(--text-muted); }
+  .legend .item{ display:flex; align-items:center; gap:5px; }
+  .legend .swatch{ width:14px; height:14px; border-radius:4px; border:1px solid rgba(0,0,0,.15); flex:none; }
+
+  /* ---- results ---- */
+  .empty-state{
+    text-align:center; padding: 28px 14px; color: var(--text-muted);
+  }
+  .empty-state .big{ font-size:1.6rem; }
+  .empty-state p{ margin: 8px 0 0; font-size:.88rem; }
+
+  .person-cards{ display:flex; flex-direction:column; gap:10px; }
+  .person-card{
+    background: var(--surface); border:1px solid var(--border); border-radius: var(--radius);
+    overflow:hidden; box-shadow: var(--shadow);
+  }
+  .person-card .strip{
+    height:6px; background: linear-gradient(90deg, var(--c-chill), var(--c-halbtag) 50%, var(--c-vollgas));
+  }
+  .person-card .body{ padding:12px; }
+  .person-card .p-head{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .person-card .p-head .name{ font-weight:800; font-size:1rem; }
+  .person-card .p-head .tariff{ font-size:.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; }
+  .ticket-list{ list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .ticket-list li{
+    display:flex; justify-content:space-between; gap:8px; font-size:.84rem; padding:6px 8px;
+    background: var(--surface-2); border-radius: var(--radius-sm);
+  }
+  .ticket-list li .meta{ color:var(--text-muted); font-size:.72rem; display:block; margin-top:1px; }
+  .ticket-list li.free{ background: var(--ok-bg); }
+  .ticket-list li .price{ font-weight:700; white-space:nowrap; }
+  .p-sum{ display:flex; justify-content:space-between; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); font-weight:800; }
+  .p-extra{ margin-top:6px; font-size:.72rem; color:var(--text-muted); display:flex; flex-direction:column; gap:2px; }
+
+  /* ---- price tables ---- */
+  .price-tables{ display:flex; flex-direction:column; gap:14px; }
+  .price-table-wrap{ overflow-x:auto; }
+  table.price-table{ width:100%; border-collapse:collapse; font-size:.78rem; }
+  table.price-table caption{ text-align:left; font-weight:800; margin-bottom:6px; font-size:.85rem; }
+  table.price-table th, table.price-table td{ padding:4px 4px; text-align:center; }
+  table.price-table thead th{ color:var(--text-muted); font-size:.68rem; text-transform:uppercase; font-weight:700; }
+  table.price-table tbody th{ text-align:left; font-weight:600; white-space:nowrap; padding-right:6px; }
+  table.price-table input[type="number"]{
+    width:100%; min-width:56px; border:1px solid var(--border); border-radius:7px; padding:6px 4px; text-align:right;
+    background: var(--surface-2); color:var(--text); font-size:.8rem; min-height:32px;
+  }
+  .price-actions{ margin-top:8px; }
+
+  footer.app-footer{
+    max-width:720px; margin:24px auto 0; padding:0 12px; font-size:.72rem; color:var(--text-muted);
+  }
+  a{ color: var(--accent-ink); }
+  .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  @media (max-width: 400px){
+    .plan-grid{ grid-template-columns: 60px repeat(var(--people-count,4), 1fr); gap:4px; }
+    .cell-btn{ font-size:.66rem; min-height:42px; }
+    .kpi-tile .kpi-value{ font-size:.92rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>🚵 Ticket-Planer Saalbach Hinterglemm</h1>
+  <p>Trage pro Person und Tag die Fahrintensität ein — der Planer findet die günstigste Ticketkombination mit Joker Card.</p>
+</header>
+
+<div class="wrap">
+
+  <section class="card" id="kpi-section">
+    <p class="section-title">Übersicht</p>
+    <div class="kpi-grid">
+      <div class="kpi-tile">
+        <div class="kpi-label">Gesamtkosten</div>
+        <div class="kpi-value" id="kpi-total">0,00 €</div>
+      </div>
+      <div class="kpi-tile savings">
+        <div class="kpi-label">Ersparnis Joker</div>
+        <div class="kpi-value" id="kpi-savings">0,00 €</div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-label">Gegenwert Freifahrten</div>
+        <div class="kpi-value" id="kpi-freerides">0,00 €</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="section-title">Reise</p>
+    <div class="controls-row">
+      <label class="field">
+        Anreisetag
+        <input type="date" id="start-date-input" aria-label="Anreisedatum">
+      </label>
+      <div class="switch-field" id="vortagsregel-switch" role="switch" aria-checked="true" tabindex="0" data-on="true" aria-label="Vortagsregel (ab 15 Uhr)">
+        <span class="switch" aria-hidden="true"><span class="knob"></span></span>
+        <span>Vortagsregel (ab 15 Uhr)</span>
+      </div>
+    </div>
+    <div class="actions-row">
+      <button class="btn" id="btn-reset-plan" type="button">Zurücksetzen</button>
+      <button class="btn primary" id="btn-best3" type="button">Beste 3 Tage übernehmen</button>
+      <button class="btn" id="btn-refresh-weather" type="button">Wetter aktualisieren</button>
+    </div>
+    <div class="weather-status" id="weather-status" role="status" aria-live="polite"></div>
+    <div id="weather-error-banner"></div>
+  </section>
+
+  <section class="card">
+    <p class="section-title">Planungsraster</p>
+    <div class="grid-scroll">
+      <div class="plan-grid" id="plan-grid" style="--people-count:4;"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section id="results-section"></section>
+
+  <section class="card">
+    <p class="section-title">Preise (editierbar)</p>
+    <div class="price-tables" id="price-tables"></div>
+    <div class="price-actions">
+      <button class="btn" id="btn-reset-prices" type="button">Preise zurücksetzen</button>
+    </div>
+  </section>
+
+</div>
+
+<footer class="app-footer">
+  <p>Preise Stand August 2026, Joker-Rabatt nur an den Bergbahnkassen in Saalbach Hinterglemm. Wetterdaten von
+    <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>. Alle Angaben ohne Gewähr — bitte vor Kauf an der Kasse verifizieren.</p>
+</footer>
+
+<script>
+'use strict';
+
+/* === OPTIMIZER START ===
+   Reine, DOM-freie Funktionen. Preise werden intern als Cent-Integer geführt,
+   damit Preisvergleiche (z.B. Ticket-Bündel vs. Einzeltickets) exakt bleiben
+   und Rundungsfehler bei wiederholten Additionen ausgeschlossen sind. */
+(function(global){
+
+  function toCents(value){
+    var n = Number(value);
+    if (!isFinite(n)) return 0;
+    return Math.round(n * 100);
+  }
+  function fromCents(c){ return c / 100; }
+
+  function intensityToReq(intensity){
+    if (intensity === 3) return 2;
+    if (intensity === 2) return 1;
+    return 0;
+  }
+
+  // DP über die Tagesachse, siehe Anforderungsspezifikation Abschnitt 5.2.
+  // Kandidaten werden in fester Reihenfolge (A,B,C,D) mit striktem "<" geprüft,
+  // damit bei Preisgleichstand die einfachere/frühere Option gewinnt (siehe T-06).
+  function optimizePerson(intensities, priceTable, opts){
+    var n = intensities.length;
+    var vortagsregel = !!(opts && opts.vortagsregel);
+    var req = intensities.map(intensityToReq);
+    var h4c = toCents(priceTable.h4);
+    var dayCents = (priceTable.days || []).map(toCents);
+
+    function dayPriceCents(L){
+      return (L >= 1 && L <= dayCents.length) ? dayCents[L - 1] : Infinity;
+    }
+
+    var dp = new Array(n + 1).fill(0);
+    var choice = new Array(n).fill(null);
+
+    for (var i = n - 1; i >= 0; i--){
+      var best = Infinity;
+      var bestChoice = null;
+
+      if (req[i] === 0){
+        best = dp[i + 1];
+        bestChoice = { type: 'skip' };
+      }
+      if (req[i] === 1){
+        var valB = h4c + dp[i + 1];
+        if (valB < best){ best = valB; bestChoice = { type: 'h4' }; }
+      }
+      if (req[i] > 0){
+        for (var L = 1; L <= n - i; L++){
+          var valC = dayPriceCents(L) + dp[i + L];
+          if (valC < best){ best = valC; bestChoice = { type: 'block', length: L }; }
+        }
+      }
+      if (vortagsregel && req[i] === 1){
+        for (var L2 = 1; L2 <= n - i - 1; L2++){
+          var valD = dayPriceCents(L2) + dp[i + 1 + L2];
+          if (valD < best){ best = valD; bestChoice = { type: 'predayBlock', length: L2 }; }
+        }
+      }
+      dp[i] = best;
+      choice[i] = bestChoice;
+    }
+
+    var tickets = [];
+    var preDayCovered = new Set();
+    var idx = 0;
+    while (idx < n){
+      var c = choice[idx];
+      if (!c || c.type === 'skip'){ idx += 1; continue; }
+      if (c.type === 'h4'){
+        tickets.push({ type: 'h4', startIndex: idx, length: 1, priceCents: h4c });
+        idx += 1; continue;
+      }
+      if (c.type === 'block'){
+        tickets.push({ type: 'block', startIndex: idx, length: c.length, priceCents: dayPriceCents(c.length) });
+        idx += c.length; continue;
+      }
+      if (c.type === 'predayBlock'){
+        preDayCovered.add(idx);
+        tickets.push({ type: 'block', startIndex: idx + 1, length: c.length, priceCents: dayPriceCents(c.length), preDayForIndex: idx });
+        idx += 1 + c.length; continue;
+      }
+      idx += 1;
+    }
+
+    var coveredDays = new Set();
+    tickets.forEach(function(t){
+      for (var d = t.startIndex; d < t.startIndex + t.length; d++) coveredDays.add(d);
+    });
+
+    var freeRideDays = [];
+    for (var d2 = 0; d2 < n; d2++){
+      if (intensities[d2] === 1 && !coveredDays.has(d2)) freeRideDays.push(d2);
+    }
+
+    return {
+      totalCents: dp[0],
+      tickets: tickets,
+      preDayCovered: preDayCovered,
+      freeRideDays: freeRideDays
+    };
+  }
+
+  function naiveTotalCents(intensities, priceTable){
+    var day1 = toCents((priceTable.days || [])[0]);
+    var sum = 0;
+    intensities.forEach(function(v){ if (intensityToReq(v) > 0) sum += day1; });
+    return sum;
+  }
+
+  // Gegenwert einer Freifahrt ist domänenseitig nicht bepreist (Fahrten sind kein
+  // separates Produkt). Als Näherung wird der 4-Stunden-Preis angesetzt, da eine
+  // Chill-Freifahrt ("bis 2 Runs") preislich am ehesten einem 4-Stunden-Ticket entspricht.
+  function freeRideValueCents(freeRideDayCount, priceTable){
+    return freeRideDayCount * toCents(priceTable.h4);
+  }
+
+  function computePersonResult(intensities, jokerTable, kasseTable, opts){
+    var jokerResult = optimizePerson(intensities, jokerTable, opts);
+    var kasseResult = optimizePerson(intensities, kasseTable, opts);
+    var naiveCents = naiveTotalCents(intensities, jokerTable);
+    return {
+      joker: jokerResult,
+      kasse: kasseResult,
+      naiveCents: naiveCents,
+      freeRideValueCents: freeRideValueCents(jokerResult.freeRideDays.length, jokerTable),
+      ticketCount: jokerResult.tickets.length
+    };
+  }
+
+  global.TicketOptimizer = {
+    toCents: toCents,
+    fromCents: fromCents,
+    intensityToReq: intensityToReq,
+    optimizePerson: optimizePerson,
+    naiveTotalCents: naiveTotalCents,
+    freeRideValueCents: freeRideValueCents,
+    computePersonResult: computePersonResult
+  };
+
+})(typeof window !== 'undefined' ? window : globalThis);
+/* === OPTIMIZER END === */
+
+(function(){
+
+  var Opt = window.TicketOptimizer;
+  var STORAGE_KEY = 'saalbach-ticket-planer:v1';
+  var DEPOSIT_CENTS = 200;
+
+  var INTENSITY = [
+    { value: 0, key: 'aus',     label: 'Aus',      hint: 'kein Bedarf' },
+    { value: 1, key: 'chill',   label: 'Chill',    hint: 'bis 2 Runs · Freifahrten' },
+    { value: 2, key: 'halbtag', label: 'Halbtag',  hint: '3–5 Runs · 4-Std-Ticket' },
+    { value: 3, key: 'vollgas', label: 'Vollgas',  hint: 'ganzer Tag · Tagesticket' }
+  ];
+
+  var TARIFFS = [
+    { key: 'adult', label: 'Erwachsen' },
+    { key: 'youth', label: 'Jugend' },
+    { key: 'child', label: 'Kind' }
+  ];
+
+  var TICKET_ROWS = [
+    { key: 'h4', label: '4 Std.' },
+    { key: 'd1', label: '1 Tag', days: 1 },
+    { key: 'd2', label: '2 Tage', days: 2 },
+    { key: 'd3', label: '3 Tage', days: 3 },
+    { key: 'd4', label: '4 Tage', days: 4 },
+    { key: 'd5', label: '5 Tage', days: 5 },
+    { key: 'd6', label: '6 Tage', days: 6 },
+    { key: 'd7', label: '7 Tage', days: 7 },
+    { key: 'd8', label: '8 Tage', days: 8 }
+  ];
+
+  var DEFAULT_PEOPLE = [
+    { id: 'sebastian', name: 'Sebastian', short: 'Seb', tariff: 'adult' },
+    { id: 'jeannette', name: 'Jeannette', short: 'Jea', tariff: 'adult' },
+    { id: 'theo', name: 'Theo', short: 'Theo', tariff: 'child' },
+    { id: 'tom', name: 'Tom', short: 'Tom', tariff: 'child' }
+  ];
+
+  var DEFAULT_PRICES = {
+    joker: {
+      adult: { h4: 45.00, days: [53.00, 98.00, 134.50, 166.50, 199.00, 227.00, 253.50, 276.50] },
+      youth: { h4: 33.50, days: [39.50, 73.50, 101.00, 125.00, 149.50, 170.00, 190.50, 207.00] },
+      child: { h4: 22.50, days: [26.50, 49.00, 67.00, 83.00, 99.50, 113.50, 127.00, 138.50] }
+    },
+    kasse: {
+      adult: { h4: 56.00, days: [66.00, 122.50, 168.00, 208.00, 249.00, 283.50, 317.00, 345.50] },
+      youth: { h4: 42.00, days: [49.50, 92.00, 126.00, 156.00, 187.00, 212.50, 238.00, 259.00] },
+      child: { h4: 28.00, days: [33.00, 61.50, 84.00, 104.00, 124.50, 142.00, 158.00, 173.00] }
+    }
+  };
+
+  var DAY_COUNT = 8;
+
+  var WMO_MAP = {
+    0: 'sonnig', 1: 'sonnig', 2: 'wolkig', 3: 'wolkig',
+    45: 'wolkig', 48: 'wolkig',
+    51: 'schauer', 53: 'schauer', 55: 'schauer', 56: 'schauer', 57: 'schauer',
+    61: 'regen', 63: 'regen', 65: 'regen', 66: 'regen', 67: 'regen',
+    71: 'schnee', 73: 'schnee', 75: 'schnee', 77: 'schnee',
+    80: 'schauer', 81: 'schauer', 82: 'regen',
+    85: 'schnee', 86: 'schnee',
+    95: 'gewitter', 96: 'gewitter', 99: 'gewitter'
+  };
+
+  var WEATHER_STATES = ['sonnig', 'wolkig', 'schauer', 'regen', 'schnee', 'gewitter', 'offen'];
+  var WEATHER_ICON = { sonnig: '☀️', wolkig: '⛅️', schauer: '🌦️', regen: '🌧️', schnee: '❄️', gewitter: '⛈️', offen: '❔' };
+  var WEATHER_LABEL = { sonnig: 'Sonnig', wolkig: 'Wolkig', schauer: 'Schauer', regen: 'Regen', schnee: 'Schnee', gewitter: 'Gewitter', offen: 'Offen (keine Prognose)' };
+  var WEATHER_SCORE = { sonnig: 4, wolkig: 3, schauer: 2, regen: 1, schnee: 1, gewitter: 0, offen: 1.5 };
+
+  var WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+  function pad2(n){ return String(n).padStart(2, '0'); }
+
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  function nextFridayISO(){
+    var d = new Date();
+    var day = d.getDay();
+    var add = (5 - day + 7) % 7;
+    d.setDate(d.getDate() + add);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  function isoToUTCDate(iso){
+    var parts = iso.split('-').map(Number);
+    return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+  }
+
+  function addDaysISO(iso, n){
+    var d = isoToUTCDate(iso);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
+  }
+
+  function formatDateShort(iso){
+    var d = isoToUTCDate(iso);
+    return pad2(d.getUTCDate()) + '.' + pad2(d.getUTCMonth() + 1) + '.';
+  }
+
+  function weekdayShort(iso){
+    var d = isoToUTCDate(iso);
+    return WEEKDAYS[d.getUTCDay()];
+  }
+
+  var moneyFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+  function formatMoney(cents){
+    return moneyFormatter.format((cents || 0) / 100);
+  }
+
+  function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+  function defaultPlan(people){
+    var plan = {};
+    people.forEach(function(p){ plan[p.id] = new Array(DAY_COUNT).fill(0); });
+    return plan;
+  }
+
+  function defaultState(){
+    return {
+      version: 1,
+      trip: { startDate: nextFridayISO(), dayCount: DAY_COUNT },
+      vortagsregel: true,
+      people: deepClone(DEFAULT_PEOPLE),
+      plan: defaultPlan(DEFAULT_PEOPLE),
+      prices: deepClone(DEFAULT_PRICES),
+      weather: { fetchedAt: null, source: null, days: null, error: null }
+    };
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      var parsed = JSON.parse(raw);
+      var base = defaultState();
+      if (!parsed || typeof parsed !== 'object') return base;
+      var state = base;
+      if (parsed.trip && typeof parsed.trip.startDate === 'string') state.trip.startDate = parsed.trip.startDate;
+      if (typeof parsed.vortagsregel === 'boolean') state.vortagsregel = parsed.vortagsregel;
+      if (Array.isArray(parsed.people) && parsed.people.length){
+        state.people = parsed.people.filter(function(p){ return p && p.id && p.tariff; });
+      }
+      if (!state.people.length) state.people = deepClone(DEFAULT_PEOPLE);
+      state.plan = defaultPlan(state.people);
+      if (parsed.plan && typeof parsed.plan === 'object'){
+        state.people.forEach(function(p){
+          var arr = parsed.plan[p.id];
+          if (Array.isArray(arr)){
+            for (var i = 0; i < DAY_COUNT; i++){
+              var v = Number(arr[i]);
+              state.plan[p.id][i] = (v === 1 || v === 2 || v === 3) ? v : 0;
+            }
+          }
+        });
+      }
+      if (parsed.prices && typeof parsed.prices === 'object'){
+        ['joker', 'kasse'].forEach(function(table){
+          if (!parsed.prices[table]) return;
+          TARIFFS.forEach(function(t){
+            var src = parsed.prices[table][t.key];
+            if (!src) return;
+            if (typeof src.h4 === 'number' && isFinite(src.h4)) state.prices[table][t.key].h4 = src.h4;
+            if (Array.isArray(src.days)){
+              for (var i = 0; i < 8; i++){
+                if (typeof src.days[i] === 'number' && isFinite(src.days[i])) state.prices[table][t.key].days[i] = src.days[i];
+              }
+            }
+          });
+        });
+      }
+      if (parsed.weather && typeof parsed.weather === 'object'){
+        state.weather = parsed.weather;
+      }
+      return state;
+    } catch (e){
+      console.warn('Gespeicherter Zustand konnte nicht gelesen werden, verwende Vorbelegung.', e);
+      return defaultState();
+    }
+  }
+
+  var saveTimer = null;
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+      catch(e){ console.warn('Speichern fehlgeschlagen.', e); }
+    }, 400);
+  }
+
+  var state = loadState();
+
+  function tripDates(){
+    var out = [];
+    for (var i = 0; i < state.trip.dayCount; i++) out.push(addDaysISO(state.trip.startDate, i));
+    return out;
+  }
+
+  function weatherForIndex(i){
+    if (!state.weather.days || !state.weather.days[i]) return { condition: 'offen', tmax: null, tmin: null, precip: null, manual: false };
+    return state.weather.days[i];
+  }
+
+  function weatherScore(w){
+    var base = WEATHER_SCORE[w.condition] != null ? WEATHER_SCORE[w.condition] : 1.5;
+    var precip = (typeof w.precip === 'number') ? w.precip : 0;
+    return base - (precip / 25);
+  }
+
+  /* ---------- Rendering ---------- */
+
+  var gridEl = document.getElementById('plan-grid');
+  var legendEl = document.getElementById('legend');
+  var resultsEl = document.getElementById('results-section');
+  var priceTablesEl = document.getElementById('price-tables');
+  var weatherStatusEl = document.getElementById('weather-status');
+  var weatherErrorEl = document.getElementById('weather-error-banner');
+  var startDateInput = document.getElementById('start-date-input');
+  var vortagsregelSwitch = document.getElementById('vortagsregel-switch');
+
+  function renderLegend(){
+    legendEl.innerHTML = INTENSITY.map(function(s){
+      var color = s.key === 'aus' ? 'var(--c-aus)' : 'var(--c-' + s.key + ')';
+      return '<span class="item"><span class="swatch" style="background:' + color + '"></span>' + s.label + ' — ' + s.hint + '</span>';
+    }).join('');
+  }
+
+  function bestThreeIndices(){
+    var dates = tripDates();
+    var candidates = [];
+    for (var i = 1; i < dates.length - 1; i++){
+      candidates.push({ i: i, score: weatherScore(weatherForIndex(i)) });
+    }
+    candidates.sort(function(a, b){ return b.score - a.score; });
+    return candidates.slice(0, 3).map(function(c){ return c.i; });
+  }
+
+  function renderGrid(){
+    var dates = tripDates();
+    gridEl.style.setProperty('--people-count', state.people.length);
+    var html = '';
+    html += '<div class="head-cell"></div>';
+    state.people.forEach(function(p){ html += '<div class="head-cell">' + escapeHtml(p.short) + '</div>'; });
+
+    var bestDays = bestThreeIndices();
+
+    dates.forEach(function(iso, i){
+      var isEdge = (i === 0 || i === dates.length - 1);
+      var w = weatherForIndex(i);
+      html += '<div class="day-label' + (isEdge ? ' trip-edge' : '') + '" data-weather-index="' + i + '" role="button" tabindex="0" ' +
+        'aria-label="Wetter ' + weekdayShort(iso) + ' ' + formatDateShort(iso) + ': ' + WEATHER_LABEL[w.condition] + '. Tippen zum Ändern.">' +
+        '<span class="wd">' + weekdayShort(iso) + ' ' + formatDateShort(iso) + '</span>' +
+        '<span class="wx">' + WEATHER_ICON[w.condition] + (bestDays.indexOf(i) > -1 ? ' ⭐' : '') + '</span>' +
+        (i === 0 ? '<span class="badge">Anreise</span>' : (i === dates.length - 1 ? '<span class="badge">Abreise</span>' : '')) +
+        '</div>';
+
+      state.people.forEach(function(p){
+        var val = state.plan[p.id][i];
+        var meta = INTENSITY[val];
+        html += '<button type="button" class="cell-btn" data-state="' + val + '" data-person="' + p.id + '" data-day="' + i + '" ' +
+          'aria-label="' + escapeHtml(p.name) + ', ' + weekdayShort(iso) + ' ' + formatDateShort(iso) + ', aktuell ' + meta.label + '. Tippen um zu ändern.">' +
+          meta.label + '</button>';
+      });
+    });
+
+    gridEl.innerHTML = html;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function tariffLabel(key){
+    var t = TARIFFS.filter(function(x){ return x.key === key; })[0];
+    return t ? t.label : key;
+  }
+
+  function ticketRangeLabel(startIndex, length){
+    var dates = tripDates();
+    var start = dates[startIndex];
+    var end = dates[startIndex + length - 1];
+    return length > 1 ? (formatDateShort(start) + '–' + formatDateShort(end)) : formatDateShort(start);
+  }
+
+  function renderResults(){
+    var totalPlannedDays = 0;
+    state.people.forEach(function(p){
+      state.plan[p.id].forEach(function(v){ if (v !== 0) totalPlannedDays++; });
+    });
+
+    if (totalPlannedDays === 0){
+      resultsEl.innerHTML =
+        '<section class="card empty-state">' +
+        '<div class="big">🚵‍♀️</div>' +
+        '<h2>Noch nichts geplant</h2>' +
+        '<p>Tippe oben im Raster auf einen Tag, um die Fahrintensität pro Person einzutragen — der Planer berechnet dann automatisch die günstigste Ticketkombination.</p>' +
+        '</section>';
+      return;
+    }
+
+    var opts = { vortagsregel: state.vortagsregel };
+    var results = state.people.map(function(p){
+      var jokerTable = state.prices.joker[p.tariff];
+      var kasseTable = state.prices.kasse[p.tariff];
+      var r = Opt.computePersonResult(state.plan[p.id], jokerTable, kasseTable, opts);
+      return { person: p, r: r };
+    });
+
+    var totalCents = results.reduce(function(s, x){ return s + x.r.joker.totalCents; }, 0);
+    var savingsCents = results.reduce(function(s, x){ return s + (x.r.kasse.totalCents - x.r.joker.totalCents); }, 0);
+    var freeRideValueCents = results.reduce(function(s, x){ return s + x.r.freeRideValueCents; }, 0);
+    var depositCents = results.reduce(function(s, x){ return s + x.r.ticketCount * DEPOSIT_CENTS; }, 0);
+
+    document.getElementById('kpi-total').textContent = formatMoney(totalCents);
+    document.getElementById('kpi-savings').textContent = formatMoney(savingsCents);
+    document.getElementById('kpi-freerides').textContent = formatMoney(freeRideValueCents);
+
+    var cardsHtml = results.map(function(x){
+      var p = x.person, r = x.r;
+      var items = r.joker.tickets.map(function(t){
+        var label = t.type === 'h4' ? '4-Stunden-Ticket' : (t.length + '-Tages-Ticket');
+        if (t.type === 'block' && t.length === 1) label = 'Tagesticket';
+        var range = ticketRangeLabel(t.startIndex, t.length);
+        var preDayNote = (t.preDayForIndex != null)
+          ? '<span class="meta">Gültig bereits ab ' + formatDateShort(tripDates()[t.preDayForIndex]) + ' 15:00 Uhr (Vortagsregel)</span>'
+          : '';
+        return '<li><span><strong>' + label + '</strong><span class="meta">' + range + '</span>' + preDayNote + '</span>' +
+          '<span class="price">' + formatMoney(t.priceCents) + '</span></li>';
+      }).join('');
+
+      var freeRideItem = '';
+      if (r.joker.freeRideDays.length){
+        var days = r.joker.freeRideDays.map(function(i){ return formatDateShort(tripDates()[i]); }).join(', ');
+        freeRideItem = '<li class="free"><span><strong>Joker-Freifahrten</strong><span class="meta">' +
+          r.joker.freeRideDays.length + ' Tag(e): ' + days + ' · ' + (r.joker.freeRideDays.length * 2) + ' Fahrten</span></span>' +
+          '<span class="price">0,00 €</span></li>';
+      }
+
+      var naiveDiff = r.naiveCents - r.joker.totalCents;
+
+      return '<div class="person-card"><div class="strip"></div><div class="body">' +
+        '<div class="p-head"><span class="name">' + escapeHtml(p.name) + '</span><span class="tariff">' + tariffLabel(p.tariff) + '</span></div>' +
+        (items || freeRideItem ? '<ul class="ticket-list">' + items + freeRideItem + '</ul>' : '<p class="p-extra">Keine Tickets nötig.</p>') +
+        '<div class="p-sum"><span>Summe</span><span>' + formatMoney(r.joker.totalCents) + '</span></div>' +
+        '<div class="p-extra">' +
+          (r.ticketCount ? '<span>zzgl. KeyCard-Pfand: ' + formatMoney(r.ticketCount * DEPOSIT_CENTS) + ' (rückerstattbar)</span>' : '') +
+          '<span>Naiv (Tagesticket je Bedarfstag): ' + formatMoney(r.naiveCents) + ' · Ersparnis: ' + formatMoney(naiveDiff) + '</span>' +
+        '</div>' +
+        '</div></div>';
+    }).join('');
+
+    resultsEl.innerHTML =
+      '<section class="card">' +
+      '<p class="section-title">Ergebnis</p>' +
+      '<div class="person-cards">' + cardsHtml + '</div>' +
+      '<div class="p-extra" style="margin-top:10px;">Gesamtes KeyCard-Pfand: ' + formatMoney(depositCents) + ' (rückerstattbar, nicht in Gesamtkosten enthalten)</div>' +
+      '</section>';
+  }
+
+  function renderPriceTables(){
+    function tableHtml(tableKey, title){
+      var rowsHtml = TICKET_ROWS.map(function(row){
+        var cellsHtml = TARIFFS.map(function(t){
+          var val = row.key === 'h4' ? state.prices[tableKey][t.key].h4 : state.prices[tableKey][t.key].days[row.days - 1];
+          return '<td><input type="number" min="0" step="0.5" value="' + val + '" ' +
+            'data-price-table="' + tableKey + '" data-price-tariff="' + t.key + '" data-price-row="' + row.key + '" ' +
+            'aria-label="' + title + ', ' + row.label + ', ' + tariffLabel(t.key) + '"></td>';
+        }).join('');
+        return '<tr><th scope="row">' + row.label + '</th>' + cellsHtml + '</tr>';
+      }).join('');
+
+      return '<div class="price-table-wrap"><table class="price-table">' +
+        '<caption>' + title + '</caption>' +
+        '<thead><tr><th></th>' + TARIFFS.map(function(t){ return '<th>' + t.label + '</th>'; }).join('') + '</tr></thead>' +
+        '<tbody>' + rowsHtml + '</tbody></table></div>';
+    }
+
+    priceTablesEl.innerHTML =
+      tableHtml('joker', 'Mit Joker Card (−20 %)') +
+      tableHtml('kasse', 'Kassenpreis ohne Joker Card');
+  }
+
+  function renderWeatherStatus(){
+    weatherErrorEl.innerHTML = '';
+    if (state.weather.error){
+      weatherStatusEl.textContent = '';
+      weatherErrorEl.innerHTML =
+        '<div class="banner error">Wetterprognose konnte nicht geladen werden: ' + escapeHtml(state.weather.error) + '. ' +
+        'Du kannst es erneut versuchen oder die Wettersymbole im Raster antippen, um sie manuell zu setzen.' +
+        '<div><button class="btn small" id="btn-retry-weather" type="button">Erneut versuchen</button></div></div>';
+      var retryBtn = document.getElementById('btn-retry-weather');
+      if (retryBtn) retryBtn.addEventListener('click', fetchWeather);
+      return;
+    }
+    if (!state.weather.days){
+      weatherStatusEl.textContent = 'Noch keine Wetterprognose geladen.';
+      return;
+    }
+    var offenCount = state.weather.days.filter(function(d){ return d.condition === 'offen' && !d.manual; }).length;
+    var when = state.weather.fetchedAt ? new Date(state.weather.fetchedAt).toLocaleString('de-DE') : '–';
+    var txt = 'Wetter aktualisiert: ' + when + '.';
+    if (offenCount > 0) txt += ' ' + offenCount + ' Tag(e) außerhalb des Prognosezeitraums (offen — manuell setzbar).';
+    weatherStatusEl.textContent = txt;
+  }
+
+  function renderAll(){
+    startDateInput.value = state.trip.startDate;
+    vortagsregelSwitch.dataset.on = state.vortagsregel ? 'true' : 'false';
+    vortagsregelSwitch.setAttribute('aria-checked', state.vortagsregel ? 'true' : 'false');
+    renderLegend();
+    renderGrid();
+    renderResults();
+    renderPriceTables();
+    renderWeatherStatus();
+  }
+
+  /* ---------- Wetter ---------- */
+
+  function mapWmoCode(code){
+    return WMO_MAP[code] || 'offen';
+  }
+
+  function fetchWeather(){
+    state.weather.error = null;
+    renderWeatherStatus();
+
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timeoutId = controller ? setTimeout(function(){ controller.abort(); }, 9000) : null;
+
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=47.3925&longitude=12.6367' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+      '&timezone=Europe%2FVienna&forecast_days=16';
+
+    fetch(url, controller ? { signal: controller.signal } : undefined)
+      .then(function(res){
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function(data){
+        if (timeoutId) clearTimeout(timeoutId);
+        var daily = data && data.daily;
+        if (!daily || !Array.isArray(daily.time)) throw new Error('Unerwartetes Antwortformat');
+
+        var dates = tripDates();
+        var days = dates.map(function(iso){
+          var idx = daily.time.indexOf(iso);
+          if (idx === -1){
+            return { condition: 'offen', tmax: null, tmin: null, precip: null, manual: false };
+          }
+          return {
+            condition: mapWmoCode(daily.weather_code[idx]),
+            tmax: daily.temperature_2m_max[idx],
+            tmin: daily.temperature_2m_min[idx],
+            precip: daily.precipitation_probability_max[idx],
+            manual: false
+          };
+        });
+
+        state.weather = { fetchedAt: new Date().toISOString(), source: 'api', days: days, error: null };
+        renderAll();
+        scheduleSave();
+      })
+      .catch(function(err){
+        if (timeoutId) clearTimeout(timeoutId);
+        var msg = (err && err.name === 'AbortError') ? 'Zeitüberschreitung bei der Anfrage' : (err && err.message) || 'Unbekannter Fehler';
+        state.weather.error = msg;
+        renderWeatherStatus();
+        scheduleSave();
+      });
+  }
+
+  /* ---------- Events ---------- */
+
+  gridEl.addEventListener('click', function(e){
+    var cell = e.target.closest('.cell-btn');
+    if (cell){
+      var personId = cell.dataset.person;
+      var day = Number(cell.dataset.day);
+      state.plan[personId][day] = (state.plan[personId][day] + 1) % 4;
+      renderGrid();
+      renderResults();
+      scheduleSave();
+      return;
+    }
+    var dayLabel = e.target.closest('.day-label');
+    if (dayLabel){
+      cycleWeatherManual(Number(dayLabel.dataset.weatherIndex));
+    }
+  });
+
+  gridEl.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var dayLabel = e.target.closest('.day-label');
+    if (dayLabel){
+      e.preventDefault();
+      cycleWeatherManual(Number(dayLabel.dataset.weatherIndex));
+    }
+  });
+
+  function cycleWeatherManual(index){
+    if (!state.weather.days){
+      state.weather.days = tripDates().map(function(){ return { condition: 'offen', tmax: null, tmin: null, precip: null, manual: false }; });
+    }
+    var current = state.weather.days[index] || { condition: 'offen' };
+    var pos = WEATHER_STATES.indexOf(current.condition);
+    var next = WEATHER_STATES[(pos + 1) % WEATHER_STATES.length];
+    state.weather.days[index] = { condition: next, tmax: current.tmax != null ? current.tmax : null, tmin: current.tmin != null ? current.tmin : null, precip: current.precip != null ? current.precip : null, manual: true };
+    state.weather.source = 'manual';
+    renderGrid();
+    renderResults();
+    scheduleSave();
+  }
+
+  priceTablesEl.addEventListener('input', function(e){
+    var input = e.target.closest('input[data-price-table]');
+    if (!input) return;
+    var tableKey = input.dataset.priceTable;
+    var tariffKey = input.dataset.priceTariff;
+    var rowKey = input.dataset.priceRow;
+    var val = parseFloat(input.value);
+    if (!isFinite(val) || val < 0) val = 0;
+    if (rowKey === 'h4'){
+      state.prices[tableKey][tariffKey].h4 = val;
+    } else {
+      var dayIndex = Number(rowKey.replace('d', '')) - 1;
+      state.prices[tableKey][tariffKey].days[dayIndex] = val;
+    }
+    renderResults();
+    scheduleSave();
+  });
+
+  document.getElementById('btn-reset-prices').addEventListener('click', function(){
+    state.prices = deepClone(DEFAULT_PRICES);
+    renderPriceTables();
+    renderResults();
+    scheduleSave();
+  });
+
+  document.getElementById('btn-reset-plan').addEventListener('click', function(){
+    state.plan = defaultPlan(state.people);
+    renderGrid();
+    renderResults();
+    scheduleSave();
+  });
+
+  document.getElementById('btn-best3').addEventListener('click', function(){
+    var indices = bestThreeIndices();
+    state.people.forEach(function(p){
+      indices.forEach(function(i){
+        state.plan[p.id][i] = (p.tariff === 'child') ? 1 : 3;
+      });
+    });
+    renderGrid();
+    renderResults();
+    scheduleSave();
+  });
+
+  document.getElementById('btn-refresh-weather').addEventListener('click', fetchWeather);
+
+  startDateInput.addEventListener('change', function(){
+    var val = startDateInput.value;
+    if (!val) return;
+    state.trip.startDate = val;
+    state.weather = { fetchedAt: null, source: null, days: null, error: null };
+    renderAll();
+    scheduleSave();
+    fetchWeather();
+  });
+
+  function toggleVortagsregel(){
+    state.vortagsregel = !state.vortagsregel;
+    vortagsregelSwitch.dataset.on = state.vortagsregel ? 'true' : 'false';
+    vortagsregelSwitch.setAttribute('aria-checked', state.vortagsregel ? 'true' : 'false');
+    renderResults();
+    scheduleSave();
+  }
+  vortagsregelSwitch.addEventListener('click', toggleVortagsregel);
+  vortagsregelSwitch.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleVortagsregel(); }
+  });
+
+  /* ---------- Init ---------- */
+
+  renderAll();
+
+  var needsWeather = !state.weather.days ||
+    (state.weather.fetchedAt && (Date.now() - new Date(state.weather.fetchedAt).getTime()) > 1000 * 60 * 60 * 6);
+  if (needsWeather) fetchWeather();
+
+})();
+</script>
+</body>
+</html>
