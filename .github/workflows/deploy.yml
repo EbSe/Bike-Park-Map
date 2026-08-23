@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - claude/ios-bike-parks-app-4n2rc
+      - claude/ticket-planer-saalbach-6ftztg
       - main
   workflow_dispatch:
 
@@ -31,6 +32,8 @@ jobs:
         run: npm run build
         env:
           VITE_BASE: /Bike-Park-Map/
+      - name: Add Ticket-Planer Saalbach Hinterglemm (standalone, no build step)
+        run: cp -r ticket-planer-saalbach dist/ticket-planer-saalbach
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
