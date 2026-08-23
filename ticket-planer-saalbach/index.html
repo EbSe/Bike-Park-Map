@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Ticket-Planer" />
+<title>Ticket-Planer Saalbach Hinterglemm</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b1220;
+    --panel: #131c2e;
+    --panel-2: #1a2540;
+    --border: #263252;
+    --text: #e9edf6;
+    --text-dim: #9aa7c2;
+    --accent: #4f8cff;
+    --good: #2fbf71;
+    --warn: #e2b93b;
+    --chill: #2563eb;
+    --half: #dc2626;
+    --full: #111111;
+    --off: #374057;
+    --radius: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-text-size-adjust: 100%;
+  }
+  body { padding: 0 0 3rem; overflow-x: hidden; }
+  main { max-width: 720px; margin: 0 auto; padding: 0.75rem 0.75rem 2rem; }
+  h1 { font-size: 1.15rem; margin: 0.9rem 0 0.2rem; }
+  h2 { font-size: 0.95rem; margin: 0 0 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .sub { color: var(--text-dim); font-size: 0.85rem; margin: 0 0 1rem; }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem; margin-bottom: 0.9rem; }
+  a { color: var(--accent); }
+
+  button {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-height: 40px;
+    padding: 0.5rem 0.8rem;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .row.between { justify-content: space-between; }
+
+  /* Trip-Kopf */
+  #trip-row label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--text-dim); }
+  #trip-row input[type="date"] {
+    font: inherit; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 0.4rem 0.5rem; min-height: 40px;
+  }
+
+  /* Legende */
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; font-size: 0.8rem; }
+  .legend .swatch { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dot { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(255,255,255,0.25); }
+
+  /* Raster */
+  #grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  #grid th, #grid td { padding: 0.25rem; text-align: center; }
+  #grid thead th { font-size: 0.72rem; color: var(--text-dim); font-weight: 600; }
+  #grid col.daycol { width: 30%; }
+  .daycell { text-align: left !important; padding-left: 0.3rem !important; }
+  .daycell .wd { font-weight: 600; font-size: 0.82rem; }
+  .daycell .dt { color: var(--text-dim); font-size: 0.72rem; }
+  .daycell .wx {
+    font-size: 1rem; cursor: pointer; margin-left: 0.15rem; min-width: 40px; min-height: 40px;
+    background: transparent; border: 1px solid transparent; border-radius: 8px; vertical-align: middle;
+  }
+  .daycell .wx:hover { border-color: var(--border); }
+  .daycell.arrival, .daycell.departure { position: relative; }
+  .daycell.arrival::before, .daycell.departure::before {
+    content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--accent);
+  }
+  .daycell .tag { font-size: 0.62rem; color: var(--accent); display: block; }
+  tr.best-day .daycell { background: rgba(47,191,113,0.12); border-radius: 8px; }
+
+  .cell-btn {
+    width: 100%; min-height: 40px; border-radius: 9px; border: 1px solid var(--border);
+    background: var(--off); color: white; font-size: 0.68rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .cell-btn[data-intensity="1"] { background: var(--chill); }
+  .cell-btn[data-intensity="2"] { background: var(--half); }
+  .cell-btn[data-intensity="3"] { background: var(--full); border-color: #444; }
+  .cell-btn[data-intensity="0"] { color: var(--text-dim); }
+
+  /* KPI */
+  .kpi-bar { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  @media (min-width: 480px) { .kpi-bar { grid-template-columns: repeat(4, 1fr); } }
+  .kpi { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.7rem; }
+  .kpi .val { font-size: 1.15rem; font-weight: 700; }
+  .kpi .lbl { font-size: 0.72rem; color: var(--text-dim); }
+  .kpi.good .val { color: var(--good); }
+
+  /* Personenkarten */
+  .keycard { background: linear-gradient(145deg, var(--panel-2), var(--panel)); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem; margin-bottom: 0.7rem; }
+  .keycard .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+  .keycard .name { font-weight: 700; font-size: 1rem; }
+  .keycard .tariff { font-size: 0.72rem; color: var(--text-dim); }
+  .keycard .sum { font-weight: 700; font-size: 1.05rem; }
+  .ticket-line { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.85rem; padding: 0.3rem 0; border-top: 1px dashed var(--border); }
+  .ticket-line .meta { color: var(--text-dim); font-size: 0.75rem; }
+  .ticket-line.free { color: var(--good); }
+  .badge-prior { font-size: 0.68rem; background: rgba(79,140,255,0.18); color: var(--accent); border-radius: 6px; padding: 0.05rem 0.35rem; margin-left: 0.3rem; }
+  .keycard .foot { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--border); }
+
+  .empty-state { text-align: center; padding: 1.5rem 1rem; color: var(--text-dim); }
+  .empty-state .cta { margin-top: 0.6rem; }
+
+  /* Preistabellen */
+  .price-table-wrap { overflow-x: auto; }
+  table.price-table { border-collapse: collapse; width: 100%; min-width: 460px; font-size: 0.82rem; }
+  table.price-table th, table.price-table td { border: 1px solid var(--border); padding: 0.3rem 0.35rem; text-align: center; }
+  table.price-table th { color: var(--text-dim); font-weight: 600; font-size: 0.72rem; }
+  table.price-table td:first-child, table.price-table th:first-child { text-align: left; color: var(--text-dim); }
+  table.price-table input {
+    width: 100%; min-width: 3.6rem; font: inherit; text-align: right; background: transparent; color: var(--text);
+    border: none; border-radius: 6px; padding: 0.35rem 0.2rem; min-height: 40px;
+  }
+  table.price-table input:focus-visible { background: var(--panel); outline: 2px solid var(--accent); }
+  .price-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
+  .price-tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .toggle-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+  .toggle-row input[type="checkbox"] { width: 20px; height: 20px; }
+
+  .status-line { font-size: 0.78rem; color: var(--text-dim); margin-top: 0.4rem; }
+  .status-line.error { color: var(--warn); }
+  .status-line button { margin-left: 0.4rem; min-height: 32px; padding: 0.2rem 0.6rem; font-size: 0.78rem; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>🎟️ Ticket-Planer Saalbach Hinterglemm</h1>
+  <p class="sub">Trage pro Person und Tag die Fahrintensität ein — die günstigste Ticketkombination wird automatisch berechnet.</p>
+
+  <section id="trip-section">
+    <h2>Reise</h2>
+    <div class="row between" id="trip-row">
+      <label>Anreisetag
+        <input type="date" id="start-date" />
+      </label>
+      <div class="row">
+        <button id="btn-reset-plan" type="button">Zurücksetzen</button>
+        <button id="btn-best3" type="button">Beste 3 Tage übernehmen</button>
+      </div>
+    </div>
+    <p class="status-line" id="weather-status"></p>
+  </section>
+
+  <section id="legend-section">
+    <h2>Legende</h2>
+    <div class="legend">
+      <span class="swatch"><span class="dot" style="background:var(--off)"></span>Aus – kein Bedarf</span>
+      <span class="swatch"><span class="dot" style="background:var(--chill)"></span>Chill – bis 2 Runs, Joker-Freifahrten</span>
+      <span class="swatch"><span class="dot" style="background:var(--half)"></span>Halbtag – 4-Std.-Ticket nötig</span>
+      <span class="swatch"><span class="dot" style="background:var(--full)"></span>Vollgas – Tagesticket nötig</span>
+    </div>
+    <div class="toggle-row" style="margin-top:0.6rem;">
+      <input type="checkbox" id="toggle-prior-rule" />
+      <label for="toggle-prior-rule">Vortagsregel: Ticket ab Tag n gilt bereits ab 15 Uhr des Vortags (deckt nur Halbtage)</label>
+    </div>
+  </section>
+
+  <section id="grid-section">
+    <h2>Planungsraster</h2>
+    <div style="overflow-x:auto;">
+      <table id="grid" aria-label="Fahrintensität pro Person und Tag">
+        <colgroup><col class="daycol" /></colgroup>
+        <thead><tr id="grid-head"><th scope="col">Tag</th></tr></thead>
+        <tbody id="grid-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="kpi-section">
+    <h2>Kennzahlen</h2>
+    <div class="kpi-bar" id="kpi-bar"></div>
+  </section>
+
+  <section id="results-section">
+    <h2>Ergebnis pro Person</h2>
+    <div id="results"></div>
+  </section>
+
+  <section id="prices-section">
+    <h2>Preise (editierbar)</h2>
+    <div class="price-tabs" role="tablist">
+      <button type="button" role="tab" aria-selected="true" data-scheme="joker">Mit Joker Card</button>
+      <button type="button" role="tab" aria-selected="false" data-scheme="kassa">Kassenpreis ohne Joker</button>
+    </div>
+    <div class="price-table-wrap"><div id="price-tables"></div></div>
+    <div class="row" style="margin-top:0.6rem;">
+      <button id="btn-reset-prices" type="button">Preise auf Standard zurücksetzen</button>
+    </div>
+  </section>
+
+  <p class="sub" style="text-align:center;">Preisstand siehe Anforderungsspezifikation, August 2026. Vor Ort an der Kasse verifizieren.</p>
+</main>
+
+<script type="module">
+import {
+  INTENSITY, INTENSITY_META, nextIntensity, TARIFFS, TARIFF_LABEL,
+  DEFAULT_PRICES, DEFAULT_PERSONS, DEFAULT_DAY_COUNT, clonePrices,
+  aggregatePlan, WEATHER_META, WEATHER_STATES, nextWeatherState, mapWmoCode,
+  bestWeatherDays, formatCurrency, addDaysISO, formatDayLabel,
+} from './logic.js';
+
+const STORAGE_KEY = 'saalbach-ticket-planer-v1';
+const SAVE_DEBOUNCE_MS = 400;
+
+function nextFriday(from) {
+  const d = new Date(from);
+  const diff = (5 - d.getDay() + 7) % 7 || 7;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultState() {
+  return {
+    version: 1,
+    trip: { startDate: nextFriday(new Date()), dayCount: DEFAULT_DAY_COUNT },
+    persons: DEFAULT_PERSONS.map((p) => ({ ...p })),
+    plan: Object.fromEntries(DEFAULT_PERSONS.map((p) => [p.id, new Array(DEFAULT_DAY_COUNT).fill(INTENSITY.OFF)])),
+    prices: clonePrices(DEFAULT_PRICES),
+    priorDayRule: true,
+    weather: { fetchedAt: null, days: [], manualOverrides: {} },
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !parsed.trip || !parsed.plan || !parsed.prices) {
+      return defaultState();
+    }
+    // sanfte Migration: fehlende Felder aus Default ergänzen, ohne Bestehendes zu verwerfen
+    const base = defaultState();
+    return {
+      ...base,
+      ...parsed,
+      trip: { ...base.trip, ...parsed.trip },
+      persons: Array.isArray(parsed.persons) && parsed.persons.length ? parsed.persons : base.persons,
+      prices: parsed.prices && parsed.prices.joker && parsed.prices.kassa ? parsed.prices : base.prices,
+      weather: { ...base.weather, ...(parsed.weather || {}) },
+    };
+  } catch (err) {
+    console.warn('Gespeicherter Zustand beschädigt, verwende Vorbelegung.', err);
+    return defaultState();
+  }
+}
+
+let state = loadState();
+let saveTimer = null;
+function flushPersist() {
+  clearTimeout(saveTimer);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.warn('Speichern fehlgeschlagen', err);
+  }
+}
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushPersist, SAVE_DEBOUNCE_MS);
+}
+// Entprellte Schreibvorgänge (FR-42) dürfen bei Reload/App-Wechsel nichts verlieren:
+// beim Verstecken der Seite wird sofort geschrieben statt auf den Timer zu warten.
+window.addEventListener('pagehide', flushPersist);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushPersist();
+});
+
+function tripDates() {
+  const out = [];
+  for (let i = 0; i < state.trip.dayCount; i++) out.push(addDaysISO(state.trip.startDate, i));
+  return out;
+}
+
+function ensurePlanShape() {
+  const n = state.trip.dayCount;
+  for (const p of state.persons) {
+    const arr = state.plan[p.id] || [];
+    if (arr.length !== n) {
+      const fixed = new Array(n).fill(INTENSITY.OFF);
+      for (let i = 0; i < Math.min(n, arr.length); i++) fixed[i] = arr[i];
+      state.plan[p.id] = fixed;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rendering: Trip-Kopf
+// ---------------------------------------------------------------------------
+const startDateInput = document.getElementById('start-date');
+startDateInput.value = state.trip.startDate;
+startDateInput.addEventListener('change', () => {
+  if (!startDateInput.value) return;
+  state.trip.startDate = startDateInput.value;
+  // FR-06/T-12: Anreisedatum-Änderung verwirft die Wetterprognose, der Plan bleibt erhalten
+  state.weather = { fetchedAt: null, days: [], manualOverrides: {} };
+  persist();
+  loadWeather();
+  renderAll();
+});
+
+document.getElementById('toggle-prior-rule').checked = state.priorDayRule;
+document.getElementById('toggle-prior-rule').addEventListener('change', (e) => {
+  state.priorDayRule = e.target.checked;
+  persist();
+  renderAll();
+});
+
+document.getElementById('btn-reset-plan').addEventListener('click', () => {
+  for (const p of state.persons) state.plan[p.id] = new Array(state.trip.dayCount).fill(INTENSITY.OFF);
+  persist();
+  renderAll();
+});
+
+document.getElementById('btn-best3').addEventListener('click', () => {
+  // FR-09: Erwachsene auf Vollgas, Kinder/Jugend auf Chill an den 3 wetterbesten Tagen,
+  // Anreise- und Abreisetag werden übersprungen.
+  const n = state.trip.dayCount;
+  const excluded = [0, n - 1];
+  const days = tripDates().map((iso) => weatherDayFor(iso));
+  const best = bestWeatherDays(days, excluded, 3);
+  for (const p of state.persons) {
+    const target = p.tariff === 'adult' ? INTENSITY.FULL : INTENSITY.CHILL;
+    for (const day of best) state.plan[p.id][day] = target;
+  }
+  persist();
+  renderAll();
+});
+
+// ---------------------------------------------------------------------------
+// Wetter
+// ---------------------------------------------------------------------------
+const LAT = 47.3925, LON = 12.6367, TZ = 'Europe/Vienna';
+const weatherStatus = document.getElementById('weather-status');
+
+function weatherDayFor(iso) {
+  if (state.weather.manualOverrides[iso]) {
+    return { condition: state.weather.manualOverrides[iso], precip: 0 };
+  }
+  const found = state.weather.days.find((d) => d.date === iso);
+  return found || { condition: 'offen', precip: null };
+}
+
+async function loadWeather() {
+  weatherStatus.classList.remove('error');
+  weatherStatus.textContent = 'Wetterprognose wird geladen …';
+  const dates = tripDates();
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+    `&timezone=${encodeURIComponent(TZ)}&start_date=${dates[0]}&end_date=${dates[dates.length - 1]}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const byDate = new Map();
+    (data.daily?.time || []).forEach((date, i) => {
+      byDate.set(date, {
+        date,
+        condition: mapWmoCode(data.daily.weather_code[i]),
+        tmax: data.daily.temperature_2m_max[i],
+        tmin: data.daily.temperature_2m_min[i],
+        precip: data.daily.precipitation_probability_max[i],
+      });
+    });
+    const days = dates.map((d) => byDate.get(d) || { date: d, condition: 'offen', tmax: null, tmin: null, precip: null });
+    state.weather = { fetchedAt: new Date().toISOString(), days, manualOverrides: state.weather.manualOverrides || {} };
+    const openCount = days.filter((d) => d.condition === 'offen' && !byDate.has(d.date)).length;
+    weatherStatus.textContent = openCount > 0
+      ? `Prognose geladen. ${openCount} Tag(e) außerhalb des Vorhersagezeitraums — manuell einstellbar per Tippen auf das Wettersymbol.`
+      : 'Prognose geladen.';
+    persist();
+    renderGrid();
+  } catch (err) {
+    console.warn('Wetterabruf fehlgeschlagen', err);
+    weatherStatus.classList.add('error');
+    weatherStatus.textContent = 'Wetterprognose nicht erreichbar (offline oder API down). Wetter lässt sich unten manuell durch Tippen auf das Symbol setzen.';
+  }
+}
+
+function setManualWeather(iso) {
+  const current = weatherDayFor(iso).condition;
+  state.weather.manualOverrides[iso] = nextWeatherState(current);
+  persist();
+  renderGrid();
+}
+
+// ---------------------------------------------------------------------------
+// Rendering: Raster
+// ---------------------------------------------------------------------------
+const gridHead = document.getElementById('grid-head');
+const gridBody = document.getElementById('grid-body');
+const colgroup = document.querySelector('#grid colgroup');
+
+function renderGrid() {
+  ensurePlanShape();
+  const dates = tripDates();
+  const n = dates.length;
+
+  gridHead.querySelectorAll('th[data-person]').forEach((el) => el.remove());
+  colgroup.querySelectorAll('col.personcol').forEach((el) => el.remove());
+  for (const p of state.persons) {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    th.dataset.person = p.id;
+    th.textContent = p.short;
+    gridHead.appendChild(th);
+    const col = document.createElement('col');
+    col.className = 'personcol';
+    colgroup.appendChild(col);
+  }
+
+  const weatherDays = dates.map((iso) => weatherDayFor(iso));
+  const bestIdx = new Set(bestWeatherDays(weatherDays, [], 3));
+
+  gridBody.innerHTML = '';
+  dates.forEach((iso, dayIndex) => {
+    const tr = document.createElement('tr');
+    if (bestIdx.has(dayIndex)) tr.classList.add('best-day');
+
+    const dayTd = document.createElement('td');
+    const isArrival = dayIndex === 0;
+    const isDeparture = dayIndex === n - 1;
+    dayTd.className = 'daycell' + (isArrival ? ' arrival' : '') + (isDeparture ? ' departure' : '');
+    const { weekday, date } = formatDayLabel(iso);
+    const wx = weatherDayFor(iso);
+    const meta = WEATHER_META[wx.condition] || WEATHER_META.offen;
+    dayTd.innerHTML = `
+      ${isArrival ? '<span class="tag">Anreise</span>' : isDeparture ? '<span class="tag">Abreise</span>' : ''}
+      <span class="wd">${weekday}</span> <span class="dt">${date}</span>
+      <button type="button" class="wx" aria-label="Wetter: ${meta.label}. Tippen zum manuellen Ändern.">${meta.icon}</button>
+    `;
+    dayTd.querySelector('.wx').addEventListener('click', () => setManualWeather(iso));
+    tr.appendChild(dayTd);
+
+    for (const p of state.persons) {
+      const td = document.createElement('td');
+      const intensity = state.plan[p.id][dayIndex];
+      const meta2 = INTENSITY_META[intensity];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cell-btn';
+      btn.dataset.intensity = String(intensity);
+      btn.textContent = meta2.short;
+      btn.setAttribute('aria-label', `${p.name}, ${weekday} ${date}: ${meta2.label}. Tippen zum Wechseln.`);
+      btn.addEventListener('click', () => {
+        state.plan[p.id][dayIndex] = nextIntensity(intensity);
+        persist();
+        renderGrid();
+        renderResults();
+      });
+      td.appendChild(btn);
+      tr.appendChild(td);
+    }
+    gridBody.appendChild(tr);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Rendering: Kennzahlen + Ergebniskarten
+// ---------------------------------------------------------------------------
+const kpiBar = document.getElementById('kpi-bar');
+const resultsEl = document.getElementById('results');
+
+function ticketLabel(ticket, dates) {
+  const start = formatDayLabel(dates[ticket.startDay]);
+  if (ticket.type === 'h4') return `4-Stunden-Ticket · ${start.weekday} ${start.date}`;
+  const end = formatDayLabel(dates[ticket.endDay]);
+  const span = ticket.length === 1 ? `${start.weekday} ${start.date}` : `${start.weekday} ${start.date} – ${end.weekday} ${end.date}`;
+  return `${ticket.length === 1 ? 'Tagesticket' : ticket.length + '-Tage-Ticket'} · ${span}`;
+}
+
+function renderResults() {
+  ensurePlanShape();
+  const dates = tripDates();
+  const hasAnyPlan = state.persons.some((p) => state.plan[p.id].some((v) => v !== INTENSITY.OFF));
+
+  const { perPerson, totals } = aggregatePlan(state.persons, state.plan, state.prices, { priorDayRule: state.priorDayRule });
+
+  kpiBar.innerHTML = `
+    <div class="kpi"><div class="val">${formatCurrency(totals.totalCost)}</div><div class="lbl">Gesamtkosten (mit Joker)</div></div>
+    <div class="kpi good"><div class="val">${formatCurrency(totals.jokerSavings)}</div><div class="lbl">Ersparnis durch Joker-Rabatt</div></div>
+    <div class="kpi good"><div class="val">${formatCurrency(totals.freeRideValue)}</div><div class="lbl">Gegenwert Freifahrten (${totals.freeRideCount} Fahrten)</div></div>
+    <div class="kpi"><div class="val">${formatCurrency(totals.naiveSavings)}</div><div class="lbl">Ersparnis ggü. Naivfall (Tagesticket je Bedarfstag)</div></div>
+  `;
+
+  if (!hasAnyPlan) {
+    resultsEl.innerHTML = `
+      <div class="empty-state">
+        Noch nichts geplant. Tippe im Raster oben auf einen Tag, um die Fahrintensität einzutragen.
+        <div class="cta"><button type="button" id="empty-best3">Beste 3 Tage übernehmen</button></div>
+      </div>`;
+    document.getElementById('empty-best3').addEventListener('click', () => document.getElementById('btn-best3').click());
+    return;
+  }
+
+  resultsEl.innerHTML = '';
+  for (const r of perPerson) {
+    const card = document.createElement('div');
+    card.className = 'keycard';
+    const ticketLines = r.tickets.map((t) => `
+      <div class="ticket-line">
+        <span>${ticketLabel(t, dates)}${t.priorDayCovered !== undefined ? '<span class="badge-prior">deckt Vortag ab</span>' : ''}</span>
+        <span>${formatCurrency(t.price)}</span>
+      </div>`).join('');
+    const freeLine = r.freeRides.days.length ? `
+      <div class="ticket-line free">
+        <span>Freifahrten Joker Card · ${r.freeRides.days.map((d) => formatDayLabel(dates[d]).weekday + ' ' + formatDayLabel(dates[d]).date).join(', ')} (${r.freeRides.rideCount} Fahrten)</span>
+        <span>0,00 €</span>
+      </div>` : '';
+    const noTickets = r.tickets.length === 0 && r.freeRides.days.length === 0
+      ? '<div class="ticket-line meta">Kein Bedarf eingetragen</div>' : '';
+
+    card.innerHTML = `
+      <div class="head">
+        <div>
+          <div class="name">${r.person.name}</div>
+          <div class="tariff">${TARIFF_LABEL[r.person.tariff]}</div>
+        </div>
+        <div class="sum">${formatCurrency(r.totalCost)}</div>
+      </div>
+      ${ticketLines}${freeLine}${noTickets}
+      <div class="foot">
+        <span>KeyCard-Pfand: ${formatCurrency(r.deposit)} (rückerstattbar)</span>
+        <span>Joker-Ersparnis: ${formatCurrency(r.jokerSavings)}</span>
+      </div>
+    `;
+    resultsEl.appendChild(card);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Preistabellen
+// ---------------------------------------------------------------------------
+let activeScheme = 'joker';
+const priceTabsWrap = document.querySelector('.price-tabs');
+priceTabsWrap.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-scheme]');
+  if (!btn) return;
+  activeScheme = btn.dataset.scheme;
+  priceTabsWrap.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+  renderPrices();
+});
+
+document.getElementById('btn-reset-prices').addEventListener('click', () => {
+  state.prices = clonePrices(DEFAULT_PRICES);
+  persist();
+  renderPrices();
+  renderResults();
+});
+
+function renderPrices() {
+  const wrap = document.getElementById('price-tables');
+  const table = state.prices[activeScheme];
+  const n = state.trip.dayCount;
+  let head = '<tr><th>Ticket</th>' + TARIFFS.map((t) => `<th>${TARIFF_LABEL[t]}</th>`).join('') + '</tr>';
+  let rows = '<tr><td>4 Stunden</td>' + TARIFFS.map((t) => priceCell(activeScheme, t, 'h4')).join('') + '</tr>';
+  for (let L = 1; L <= Math.max(n, 8); L++) {
+    rows += `<tr><td>${L === 1 ? '1 Tag' : L + ' Tage'}</td>` + TARIFFS.map((t) => priceCell(activeScheme, t, L)).join('') + '</tr>';
+  }
+  wrap.innerHTML = `<table class="price-table"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+  wrap.querySelectorAll('input[data-scheme]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const { scheme, tariff, field } = input.dataset;
+      const value = input.value.trim() === '' ? 0 : Number(input.value.replace(',', '.'));
+      const numeric = Number.isFinite(value) ? value : 0;
+      if (field === 'h4') state.prices[scheme][tariff].h4 = numeric;
+      else state.prices[scheme][tariff].days[Number(field)] = numeric;
+      persist();
+      renderResults();
+    });
+  });
+}
+
+function priceCell(scheme, tariff, field) {
+  const table = state.prices[scheme][tariff];
+  const value = field === 'h4' ? table.h4 : table.days[field];
+  const safe = value === null || value === undefined ? '' : value;
+  return `<td><input inputmode="decimal" data-scheme="${scheme}" data-tariff="${tariff}" data-field="${field}" value="${safe}" aria-label="${TARIFF_LABEL[tariff]} ${field === 'h4' ? '4-Stunden-Ticket' : field + '-Tage-Ticket'}" /></td>`;
+}
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+function renderAll() {
+  renderGrid();
+  renderResults();
+  renderPrices();
+}
+
+renderAll();
+loadWeather();
+</script>
+</body>
+</html>

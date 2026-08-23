@@ -20,6 +20,14 @@ Installation in unter 60 Sekunden auf jedem iPhone — siehe [SETUP.md](./SETUP.
 - 📡 **Offline-fähig**: Karten-Tiles werden gecached
 - 🔒 **100% privat**: keine Anmeldung, kein Backend, keine Tracking-Cookies
 
+## Zusatztool: Ticket-Planer Saalbach Hinterglemm
+
+Eigenständiges, von der PWA unabhängiges Werkzeug unter
+[`ticket-planer-saalbach/`](./ticket-planer-saalbach/): berechnet pro Person
+und Tag die kostenminimale Bike-Ticket-Kombination in Saalbach Hinterglemm
+unter Berücksichtigung von Joker Card, Freifahrten und Mehrtagesrabatten.
+Details siehe [`ticket-planer-saalbach/README.md`](./ticket-planer-saalbach/README.md).
+
 ## Installation auf dem iPhone
 
 Siehe **[SETUP.md](./SETUP.md)** für die Schritt-für-Schritt-Anleitung.
