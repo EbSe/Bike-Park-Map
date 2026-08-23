@@ -1,68 +1,66 @@
-# 🚵 Bikepark Map
+# 🎟️ Ticket-Planer Saalbach Hinterglemm
 
-Progressive Web App (PWA) zum Entdecken, Filtern und Tracken von Bikeparks in **Süddeutschland, Österreich, Schweiz und Norditalien** (bis Gardasee). 
+Werkzeug zur kostenminimalen Bike-Ticket-Planung für einen mehrtägigen Trip nach
+Saalbach Hinterglemm mit Joker Card. Trage pro Person und Tag die geplante
+Fahrintensität ein — das Werkzeug berechnet daraus die günstigste Kombination
+aus 4-Stunden-, Tages- und Mehrtagestickets, unter Berücksichtigung von
+Joker-Rabatt, Freifahrten und Mehrtagesrabatten.
 
-Installation in unter 60 Sekunden auf jedem iPhone — siehe [SETUP.md](./SETUP.md).
+Live: **https://ebse.github.io/Bike-Park-Map/**
 
-## Features
+## Nutzung
 
-- 🗺️ **Karten- & Listenansicht** mit ~80 kuratierten Parks (große Resorts wie Leogang, Lenzerheide, Livigno bis hin zu kleinen Vereins-Flowtrails wie Stromberg/Ottweiler)
-- 🔍 **Filter** nach Land, Schwierigkeit, Bike-Typ, Lift-Art, Ausstattung, Preis und Entfernung
-- 📋 **Detail-Seite pro Park** mit Trails inkl. Schwierigkeit/Länge, Preisen, Lifte, Saison, Ausstattung, Webseite-Link
-- 🌦️ **Live-Wetter** + 4-Tage-Vorschau pro Park (Open-Meteo, kostenlos)
-- 🧭 **Navigation** in einem Tap → Apple Maps / Google Maps
-- ⭐ **Wishlist** für Parks, die du noch fahren willst
-- ✅ **Sessions tracken** mit Rating, Notizen, Foto- & Video-Upload (lokal gespeichert)
-- 📊 **GPX & FIT Import** aus Garmin / Apple Fitness / Strava / Komoot — automatisch dem nächstgelegenen Park zugeordnet
-- 📈 **Statistik-Dashboard**: Parks gefahren, km, Höhenmeter, Stunden, pro Land
-- ➕ **Eigene Parks anlegen** (Vereinsparks, kleine Trails, neue Spots)
-- 💾 **Export/Import als JSON-Backup** — alles lokal, kein Cloud-Account nötig
-- 📡 **Offline-fähig**: Karten-Tiles werden gecached
-- 🔒 **100% privat**: keine Anmeldung, kein Backend, keine Tracking-Cookies
+`index.html` direkt öffnen (statischer HTTP-Server, z. B. `npx http-server .`)
+oder per GitHub Pages ausliefern — siehe `.github/workflows/deploy.yml`. Die
+Seite ist bis auf den Wetterabruf vollständig offlinefähig; Eingaben, Preise
+und Wetterstand werden automatisch im Browser gespeichert (`localStorage`) und
+beim nächsten Öffnen wiederhergestellt.
 
-## Zusatztool: Ticket-Planer Saalbach Hinterglemm
+Auf dem iPhone/iPad: Safari öffnen → Teilen-Symbol → **„Zum Home-Bildschirm"**.
 
-Eigenständiges, von der PWA unabhängiges Werkzeug unter
-[`ticket-planer-saalbach/`](./ticket-planer-saalbach/): berechnet pro Person
-und Tag die kostenminimale Bike-Ticket-Kombination in Saalbach Hinterglemm
-unter Berücksichtigung von Joker Card, Freifahrten und Mehrtagesrabatten.
-Details siehe [`ticket-planer-saalbach/README.md`](./ticket-planer-saalbach/README.md).
+## Dateien
 
-## Installation auf dem iPhone
+- **`index.html`** — UI, Zustandsverwaltung, Persistenz, Wetterabruf. Lädt
+  `logic.js` per `<script type="module" src="./logic.js">`.
+- **`logic.js`** — die eigentliche Substanz: Domänenregeln, DP-Optimierer,
+  Preistabellen, Wetter-Codes/-Scoring, Formatierung. Reine Funktionen, kein
+  DOM-Zugriff, per ES-Modul sowohl von `index.html` als auch von Node aus
+  importierbar.
+- **`logic.test.mjs`** — Node-Testskript ohne Abhängigkeiten, bildet die
+  Akzeptanzkriterien aus der Anforderungsspezifikation direkt ab.
 
-Siehe **[SETUP.md](./SETUP.md)** für die Schritt-für-Schritt-Anleitung.
-
-Kurzform:
-1. Im GitHub-Repo: **Settings → Pages → Source: GitHub Actions**
-2. Auf iPhone-Safari `https://ebse.github.io/Bike-Park-Map/` öffnen
-3. Teilen-Symbol → **„Zum Home-Bildschirm"** → Fertig
-
-## Lokal entwickeln
+Kein Build-Schritt: alle Dateien werden unverändert vom Browser bzw. von Node
+geladen. Test ausführen:
 
 ```bash
-npm install
-npm run dev      # Entwicklungsserver
-npm run build    # Production-Build nach dist/
-npm run preview  # Build lokal anschauen
-npm run icons    # PWA-Icons neu generieren
+node logic.test.mjs
 ```
 
-## Architektur
+## Bekannte Vereinfachungen
 
-- **Vanilla JS + Vite** – keine Framework-Last, schnelles Laden
-- **Leaflet + leaflet.markercluster** – Karte mit Clustering
-- **vite-plugin-pwa (Workbox)** – Service Worker, Offline-Cache, Manifest
-- **IndexedDB** – komplette lokale Datenhaltung (visits, media, custom parks, tracks)
-- **Open-Meteo** – kostenloses Wetter-API ohne Key
-- **OpenStreetMap / OpenTopoMap / CartoDB** – Karten-Tiles, durchschaltbar
-
-Bundle-Größe: ca. 311 KB JS (gzip 84 KB), 34 KB CSS (gzip 10 KB), Lighthouse-PWA-Score ≥ 90.
-
-## Datenquellen
-
-- **Park-Datenbank**: handkuratiert für ~80 Parks mit Preisen, Saisonzeiten, Strecken-Listen, Lifte, Ausstattung. Stand: 2024 — bitte vor dem Besuch auf der Webseite des jeweiligen Parks aktuelle Infos prüfen!
-- **OpenStreetMap-Erweiterung möglich**: `npm run fetch-osm` läuft die Overpass-API ab und liefert weitere Parks. Aktuell nicht in den Build integriert weil die kuratierten Daten qualitativ besser sind. Wenn du eigene Parks ergänzen willst, ist der „Park hinzufügen"-Dialog in der App der einfachste Weg.
+- **Gegenwert der Freifahrten** (Kennzahlenleiste): Die Spezifikation nennt
+  diese Kennzahl, beziffert aber nicht, wie sie berechnet wird. Hier gewählt:
+  Anzahl Freifahrttage × 4-Stunden-Ticketpreis (Joker) des jeweiligen Tarifs —
+  die günstigste kostenpflichtige Alternative für einen Tag mit Restbedarf.
+  Deutlich als Kennzahl mit Fahrtenzahl ausgewiesen, nicht in die Gesamtsumme
+  eingerechnet.
+- **Zustandsscore der Wetterbewertung**: Die Formel
+  "Zustandsscore − Niederschlagswahrscheinlichkeit / 25" ist vorgegeben, die
+  Basiswerte je Zustand nicht. Gewählt: sonnig 4, wolkig 3, Schauer 2, Regen 1,
+  Schnee 1, Gewitter 0, offen 1,5 (neutral, da unbekannt).
+- **Personenverwaltung** ist bewusst nicht umgesetzt — laut Spezifikation
+  nicht Teil des Auftrags. Das Datenmodell (Personen als Array mit
+  `id`/`tariff`) ist aber so gehalten, dass eine spätere UI dafür ohne
+  Datenmigration ergänzt werden kann.
+- **Jugendtarif** ist in den Preistabellen vollständig hinterlegt, aber in der
+  Standard-Personenliste (Sebastian, Jeannette, Theo, Tom) nicht verwendet, da
+  alle vier aktuell Erwachsen/Kind sind.
+- **10-Tages-Ticket** bewusst nicht aufgenommen, da die Preiswerte zwischen
+  App und Website widersprüchlich waren und vor Ort verifiziert werden
+  müssten. Preistabellen und Optimierer unterstützen Trips bis 8 Tage
+  (Standard); eine spätere Erweiterung erfordert nur zusätzliche Einträge im
+  `days`-Array der Preistabelle.
 
 ## Lizenz
 
-Code: MIT. Park-Daten: Best-Effort-Recherche, kein Anspruch auf Aktualität oder Vollständigkeit. Karten © OpenStreetMap-Mitwirkende.
+MIT.

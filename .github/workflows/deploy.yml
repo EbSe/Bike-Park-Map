@@ -1,9 +1,8 @@
-name: Deploy PWA to GitHub Pages
+name: Deploy Ticket-Planer to GitHub Pages
 
 on:
   push:
     branches:
-      - claude/ios-bike-parks-app-4n2rc
       - claude/ticket-planer-saalbach-6ftztg
       - main
   workflow_dispatch:
@@ -18,22 +17,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-      - name: Install
-        run: npm ci --no-audit --no-fund
-      - name: Build
-        run: npm run build
-        env:
-          VITE_BASE: /Bike-Park-Map/
-      - name: Add Ticket-Planer Saalbach Hinterglemm (standalone, no build step)
-        run: cp -r ticket-planer-saalbach dist/ticket-planer-saalbach
+      - name: Prepare site (only the files that should be public)
+        run: |
+          mkdir site
+          cp index.html logic.js site/
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -41,15 +35,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
+          path: ./site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
