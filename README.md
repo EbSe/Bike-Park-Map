@@ -36,14 +36,31 @@ geladen. Test ausführen:
 node logic.test.mjs
 ```
 
+## Fahrintensitäten
+
+Fünf Stufen pro Person und Tag (Tippzyklus): **Aus** → **Chill** (bis 2 Runs,
+komplett über Joker-Freifahrten) → **Halbtag** (4-Stunden-Ticket, danach
+Feierabend) → **Halbtag+** (4-Stunden-Ticket vormittags, danach Pause, dann
+noch 2 Joker-Freifahrten am Nachmittag) → **Vollgas** (ganzer Tag, Tagesticket)
+→ zurück zu Aus.
+
+Halbtag+ kostet genauso viel wie ein reiner Halbtag (dieselbe Mindestanforderung
+an ein 4-Stunden-Ticket) — der Unterschied ist rein die Auswertung: die
+zusätzlichen 2 Fahrten am Nachmittag werden separat als genutzte Freifahrt
+ausgewiesen. Liegt der Tag ohnehin innerhalb eines gekauften Mehrtagesblocks
+(weil das günstiger war), gibt es nichts zusätzlich zu zählen — das Ticket
+deckt den ganzen Tag bereits ab.
+
 ## Bekannte Vereinfachungen
 
 - **Gegenwert der Freifahrten** (Kennzahlenleiste): Die Spezifikation nennt
   diese Kennzahl, beziffert aber nicht, wie sie berechnet wird. Hier gewählt:
-  Anzahl Freifahrttage × 4-Stunden-Ticketpreis (Joker) des jeweiligen Tarifs —
-  die günstigste kostenpflichtige Alternative für einen Tag mit Restbedarf.
-  Deutlich als Kennzahl mit Fahrtenzahl ausgewiesen, nicht in die Gesamtsumme
-  eingerechnet.
+  Anzahl reiner Chill-Freifahrttage × 4-Stunden-Ticketpreis (Joker) des
+  jeweiligen Tarifs — die günstigste kostenpflichtige Alternative für einen
+  Tag mit Restbedarf. Halbtag+-Nachmittagsfahrten fließen bewusst nicht in
+  diesen Euro-Wert ein (dort ist bereits ein Ticket bezahlt, die Freifahrten
+  sind nur der Bonus obendrauf), werden aber mit Fahrtenzahl separat
+  ausgewiesen. Nicht in die Gesamtsumme eingerechnet.
 - **Zustandsscore der Wetterbewertung**: Die Formel
   "Zustandsscore − Niederschlagswahrscheinlichkeit / 25" ist vorgegeben, die
   Basiswerte je Zustand nicht. Gewählt: sonnig 4, wolkig 3, Schauer 2, Regen 1,

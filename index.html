@@ -21,6 +21,7 @@
     --warn: #e2b93b;
     --chill: #2563eb;
     --half: #dc2626;
+    --split: #f59e0b;
     --full: #111111;
     --off: #374057;
     --radius: 14px;
@@ -100,6 +101,7 @@
   }
   .cell-btn[data-intensity="1"] { background: var(--chill); }
   .cell-btn[data-intensity="2"] { background: var(--half); }
+  .cell-btn[data-intensity="4"] { background: var(--split); color: #1a1200; }
   .cell-btn[data-intensity="3"] { background: var(--full); border-color: #444; }
   .cell-btn[data-intensity="0"] { color: var(--text-dim); }
 
@@ -164,6 +166,7 @@
       <div class="row">
         <button id="btn-reset-plan" type="button">Zurücksetzen</button>
         <button id="btn-best3" type="button">Beste 3 Tage übernehmen</button>
+        <button id="btn-reload-weather" type="button">🔄 Wetter neu laden</button>
       </div>
     </div>
     <p class="status-line" id="weather-status"></p>
@@ -175,6 +178,7 @@
       <span class="swatch"><span class="dot" style="background:var(--off)"></span>Aus – kein Bedarf</span>
       <span class="swatch"><span class="dot" style="background:var(--chill)"></span>Chill – bis 2 Runs, Joker-Freifahrten</span>
       <span class="swatch"><span class="dot" style="background:var(--half)"></span>Halbtag – 4-Std.-Ticket nötig</span>
+      <span class="swatch"><span class="dot" style="background:var(--split)"></span>Halbtag+ – 4-Std.-Ticket vormittags, 2 Joker-Freifahrten nachmittags</span>
       <span class="swatch"><span class="dot" style="background:var(--full)"></span>Vollgas – Tagesticket nötig</span>
     </div>
     <div class="toggle-row" style="margin-top:0.6rem;">
@@ -360,6 +364,8 @@ document.getElementById('btn-best3').addEventListener('click', () => {
 // ---------------------------------------------------------------------------
 const LAT = 47.3925, LON = 12.6367, TZ = 'Europe/Vienna';
 const weatherStatus = document.getElementById('weather-status');
+const reloadWeatherBtn = document.getElementById('btn-reload-weather');
+const TIME_FORMAT = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
 
 function weatherDayFor(iso) {
   if (state.weather.manualOverrides[iso]) {
@@ -372,6 +378,7 @@ function weatherDayFor(iso) {
 async function loadWeather() {
   weatherStatus.classList.remove('error');
   weatherStatus.textContent = 'Wetterprognose wird geladen …';
+  reloadWeatherBtn.disabled = true;
   const dates = tripDates();
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
     `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
@@ -393,17 +400,22 @@ async function loadWeather() {
     const days = dates.map((d) => byDate.get(d) || { date: d, condition: 'offen', tmax: null, tmin: null, precip: null });
     state.weather = { fetchedAt: new Date().toISOString(), days, manualOverrides: state.weather.manualOverrides || {} };
     const openCount = days.filter((d) => d.condition === 'offen' && !byDate.has(d.date)).length;
+    const time = TIME_FORMAT.format(new Date(state.weather.fetchedAt));
     weatherStatus.textContent = openCount > 0
-      ? `Prognose geladen. ${openCount} Tag(e) außerhalb des Vorhersagezeitraums — manuell einstellbar per Tippen auf das Wettersymbol.`
-      : 'Prognose geladen.';
+      ? `Prognose aktualisiert (${time} Uhr). ${openCount} Tag(e) außerhalb des Vorhersagezeitraums — manuell einstellbar per Tippen auf das Wettersymbol.`
+      : `Prognose aktualisiert (${time} Uhr).`;
     persist();
     renderGrid();
   } catch (err) {
     console.warn('Wetterabruf fehlgeschlagen', err);
     weatherStatus.classList.add('error');
-    weatherStatus.textContent = 'Wetterprognose nicht erreichbar (offline oder API down). Wetter lässt sich unten manuell durch Tippen auf das Symbol setzen.';
+    weatherStatus.textContent = 'Wetterprognose nicht erreichbar (offline oder API down). Wetter lässt sich unten manuell durch Tippen auf das Symbol setzen, oder „Wetter neu laden" erneut versuchen.';
+  } finally {
+    reloadWeatherBtn.disabled = false;
   }
 }
+
+reloadWeatherBtn.addEventListener('click', () => loadWeather());
 
 function setManualWeather(iso) {
   const current = weatherDayFor(iso).condition;
@@ -530,12 +542,23 @@ function renderResults() {
         <span>${ticketLabel(t, dates)}${t.priorDayCovered !== undefined ? '<span class="badge-prior">deckt Vortag ab</span>' : ''}</span>
         <span>${formatCurrency(t.price)}</span>
       </div>`).join('');
-    const freeLine = r.freeRides.days.length ? `
+    const freeDayLabels = (kind) => r.freeRides.entries
+      .filter((e) => e.kind === kind)
+      .map((e) => `${formatDayLabel(dates[e.day]).weekday} ${formatDayLabel(dates[e.day]).date}`)
+      .join(', ');
+    const chillEntries = r.freeRides.entries.filter((e) => e.kind === 'chill');
+    const splitEntries = r.freeRides.entries.filter((e) => e.kind === 'split');
+    const chillLine = chillEntries.length ? `
       <div class="ticket-line free">
-        <span>Freifahrten Joker Card · ${r.freeRides.days.map((d) => formatDayLabel(dates[d]).weekday + ' ' + formatDayLabel(dates[d]).date).join(', ')} (${r.freeRides.rideCount} Fahrten)</span>
+        <span>Freifahrten Joker Card (Chill) · ${freeDayLabels('chill')} (${chillEntries.length * 2} Fahrten)</span>
         <span>0,00 €</span>
       </div>` : '';
-    const noTickets = r.tickets.length === 0 && r.freeRides.days.length === 0
+    const splitLine = splitEntries.length ? `
+      <div class="ticket-line free">
+        <span>Halbtag+ Nachmittagsfahrten (Joker Card) · ${freeDayLabels('split')} (${splitEntries.length * 2} Fahrten)</span>
+        <span>0,00 €</span>
+      </div>` : '';
+    const noTickets = r.tickets.length === 0 && r.freeRides.entries.length === 0
       ? '<div class="ticket-line meta">Kein Bedarf eingetragen</div>' : '';
 
     card.innerHTML = `
@@ -546,7 +569,7 @@ function renderResults() {
         </div>
         <div class="sum">${formatCurrency(r.totalCost)}</div>
       </div>
-      ${ticketLines}${freeLine}${noTickets}
+      ${ticketLines}${chillLine}${splitLine}${noTickets}
       <div class="foot">
         <span>KeyCard-Pfand: ${formatCurrency(r.deposit)} (rückerstattbar)</span>
         <span>Joker-Ersparnis: ${formatCurrency(r.jokerSavings)}</span>

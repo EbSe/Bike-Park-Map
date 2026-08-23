@@ -2,14 +2,18 @@
 // Keine DOM-Zugriffe, kein globaler Zustand — ausschließlich Funktionen auf Eingabewerten.
 // Wird sowohl von index.html (als ES-Modul) als auch von logic.test.mjs (Node) importiert.
 
-export const INTENSITY = Object.freeze({ OFF: 0, CHILL: 1, HALF: 2, FULL: 3 });
+export const INTENSITY = Object.freeze({ OFF: 0, CHILL: 1, HALF: 2, FULL: 3, SPLIT: 4 });
 
-export const INTENSITY_SEQUENCE = [INTENSITY.OFF, INTENSITY.CHILL, INTENSITY.HALF, INTENSITY.FULL];
+// Reihenfolge des Tipp-Zyklus (FR-02) — SPLIT sitzt bewusst zwischen HALF und FULL: mehr
+// Fahrten als ein reiner Halbtag (4h-Ticket + 2 Joker-Freifahrten am Nachmittag), aber kein
+// ganzer Tag.
+export const INTENSITY_SEQUENCE = [INTENSITY.OFF, INTENSITY.CHILL, INTENSITY.HALF, INTENSITY.SPLIT, INTENSITY.FULL];
 
 export const INTENSITY_META = Object.freeze({
   [INTENSITY.OFF]: { label: 'Aus', short: '–', color: '#6b7280', trail: 'neutral' },
   [INTENSITY.CHILL]: { label: 'Chill', short: 'C', color: '#2563eb', trail: 'blau' },
   [INTENSITY.HALF]: { label: 'Halbtag', short: 'H', color: '#dc2626', trail: 'rot' },
+  [INTENSITY.SPLIT]: { label: 'Halbtag+', short: 'H+', color: '#f59e0b', trail: 'orange' },
   [INTENSITY.FULL]: { label: 'Vollgas', short: 'V', color: '#111111', trail: 'schwarz' },
 });
 
@@ -65,7 +69,11 @@ function priceForDays(priceTable, length) {
 
 function requirementFor(intensity) {
   if (intensity === INTENSITY.FULL) return 2;
-  if (intensity === INTENSITY.HALF) return 1;
+  // Halbtag+ (SPLIT) braucht preislich dasselbe wie ein reiner Halbtag: mindestens ein
+  // 4-Stunden-Ticket. Der Unterschied ist nur, was am Nachmittag zusätzlich genutzt wird
+  // (2 Joker-Freifahrten statt Feierabend) — das beeinflusst die Kosten nicht, nur die
+  // Freifahrten-Auswertung (siehe computeFreeRides).
+  if (intensity === INTENSITY.HALF || intensity === INTENSITY.SPLIT) return 1;
   return 0;
 }
 
@@ -186,28 +194,42 @@ export function optimizeSchedule(intensities, priceTable, options = {}) {
   return { totalCost: Number.isFinite(dp[0]) ? dp[0] : 0, tickets, priorDayCovered };
 }
 
-function coveredDaySet(tickets) {
-  const set = new Set();
+function coveringTicketByDay(tickets) {
+  const map = new Map();
   for (const t of tickets) {
-    for (let d = t.startDay; d <= t.endDay; d++) set.add(d);
+    for (let d = t.startDay; d <= t.endDay; d++) map.set(d, t);
   }
-  return set;
+  return map;
 }
 
-/** FR-11/FR-12: genutzte Freifahrten sind Chill-Tage, die nicht innerhalb eines gekauften Blocks liegen. */
+/**
+ * Genutzte Freifahrten (FR-11/FR-12/FR-22) entstehen an zwei Arten von Tagen:
+ * - Chill-Tage, die nicht innerhalb eines gekauften Tickets liegen (komplett kostenlos).
+ * - Halbtag+-Tage, deren Bedarf durch ein reines 4-Stunden-Ticket gedeckt wird: der
+ *   Nachmittag läuft dann über die 2 Joker-Freifahrten. Liegt der Tag stattdessen in einem
+ *   Mehrtagesblock (das Ticket deckt den ganzen Tag ohnehin ab), gibt es nichts zusätzlich
+ *   zu zählen.
+ */
 export function computeFreeRides(intensities, tickets) {
-  const covered = coveredDaySet(tickets);
-  const days = [];
+  const coveringByDay = coveringTicketByDay(tickets);
+  const entries = [];
   intensities.forEach((intensity, day) => {
-    if (intensity === INTENSITY.CHILL && !covered.has(day)) days.push(day);
+    const covering = coveringByDay.get(day);
+    if (intensity === INTENSITY.CHILL && !covering) {
+      entries.push({ day, kind: 'chill' });
+    } else if (intensity === INTENSITY.SPLIT && (!covering || covering.type === 'h4')) {
+      entries.push({ day, kind: 'split' });
+    }
   });
-  return { days, rideCount: days.length * 2 };
+  return { entries, days: entries.map((e) => e.day), rideCount: entries.length * 2 };
 }
 
-/** FR-17: Naivfall — ein Tagesticket für jeden Tag mit Ticketbedarf (Halbtag oder Vollgas). */
+/** FR-17: Naivfall — ein Tagesticket für jeden Tag mit Ticketbedarf (Halbtag, Halbtag+ oder Vollgas). */
 export function naiveDayTicketCost(intensities, priceTable) {
   const dayPrice = priceForDays(priceTable, 1) || 0;
-  const neededDays = intensities.filter((v) => v === INTENSITY.HALF || v === INTENSITY.FULL).length;
+  const neededDays = intensities.filter(
+    (v) => v === INTENSITY.HALF || v === INTENSITY.SPLIT || v === INTENSITY.FULL
+  ).length;
   return neededDays * dayPrice;
 }
 
@@ -235,10 +257,13 @@ export function planPerson(person, intensities, prices, options = {}) {
     naiveCost,
     naiveSavings: naiveCost - jokerResult.totalCost,
     deposit: jokerResult.tickets.length * KEYCARD_DEPOSIT,
-    // Geschätzter Gegenwert der Freifahrten: nicht in den Bedingungen beziffert. Als plausibler
-    // Anhaltspunkt wird ein Chill-Tag (bis zu 2 Fahrten) zum 4-Stunden-Ticketpreis des Jokertarifs
-    // bewertet, weil das die kleinste kostenpflichtige Alternative für einen Halbtagsbedarf ist.
-    freeRideValue: freeRides.days.length * toFiniteNumber(jokerTable.h4),
+    // Geschätzter Gegenwert der Freifahrten: nicht in den Bedingungen beziffert. Nur Chill-Tage
+    // fließen ein (ein kompletter Tag zum 4-Stunden-Ticketpreis des Jokertarifs, die günstigste
+    // kostenpflichtige Alternative). Halbtag+-Tage zählen hier bewusst nicht mit: dort ist bereits
+    // ein 4-Stunden-Ticket bezahlt, die Freifahrten sind nur der Nachmittags-Bonus obendrauf, kein
+    // ersparter Ticketkauf.
+    freeRideValue:
+      freeRides.entries.filter((e) => e.kind === 'chill').length * toFiniteNumber(jokerTable.h4),
   };
 }
 

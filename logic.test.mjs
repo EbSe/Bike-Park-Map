@@ -11,7 +11,7 @@ import {
   KEYCARD_DEPOSIT,
 } from './logic.js';
 
-const { OFF, CHILL, HALF, FULL } = INTENSITY;
+const { OFF, CHILL, HALF, FULL, SPLIT } = INTENSITY;
 
 let passed = 0;
 let failed = 0;
@@ -191,6 +191,34 @@ test('Zusatzcheck: KeyCard-Pfand pro gekauftem Ticket (DR-11)', () => {
   const person = { id: 'p', name: 'P', short: 'P', tariff: 'adult' };
   const result = planPerson(person, intensities, DEFAULT_PRICES, {});
   assertClose(result.deposit, 2 * KEYCARD_DEPOSIT, 'Pfand für 2 Tickets');
+});
+
+// Halbtag+ (SPLIT): kostet wie ein reiner Halbtag (nur 4h-Ticket), zählt aber zusätzlich als
+// genutzte Freifahrt (2 Fahrten), weil der Nachmittag über die Joker-Freifahrten läuft.
+test('Halbtag+ als Einzeltag: kostet wie Halbtag, zählt zusätzlich 2 Freifahrten', () => {
+  const intensities = days(8);
+  intensities[2] = SPLIT;
+  const result = optimizeSchedule(intensities, adultJoker, {});
+  assertClose(result.totalCost, 45.0, 'Gesamtkosten (wie reiner Halbtag)');
+  if (result.tickets[0].type !== 'h4') throw new Error('erwartet 4h-Ticket');
+  const freeRides = computeFreeRides(intensities, result.tickets);
+  if (freeRides.rideCount !== 2) throw new Error(`erwartet 2 Fahrten, erhalten ${freeRides.rideCount}`);
+  if (freeRides.entries[0].kind !== 'split') throw new Error('erwartet kind "split"');
+});
+
+// Liegt der Halbtag+-Tag innerhalb eines ohnehin gekauften Mehrtagesblocks, deckt das Ticket den
+// ganzen Tag ab — dann gibt es keine zusätzlichen Freifahrten zu zählen (analog FR-12).
+test('Halbtag+ innerhalb eines Mehrtagesblocks zählt nicht zusätzlich als Freifahrt', () => {
+  const intensities = days(8);
+  intensities[1] = FULL;
+  intensities[2] = SPLIT;
+  intensities[3] = FULL;
+  const result = optimizeSchedule(intensities, adultJoker, {});
+  assertClose(result.totalCost, 134.5, 'Gesamtkosten (3-Tages-Block deckt auch den Halbtag+-Tag ab)');
+  const freeRides = computeFreeRides(intensities, result.tickets);
+  if (freeRides.rideCount !== 0) {
+    throw new Error(`erwartet 0 zusätzliche Freifahrten, erhalten ${freeRides.rideCount}`);
+  }
 });
 
 console.log(`\n${passed} bestanden, ${failed} fehlgeschlagen`);
